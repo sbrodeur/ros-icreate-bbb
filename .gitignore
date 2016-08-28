@@ -1,0 +1,11 @@
+cmake_install.cmake
+build/
+devel/
+bin/
+msg_gen/
+srv_gen/
+*~
+*.pyc
+.DS_STORE
+/.project
+/.pydevproject

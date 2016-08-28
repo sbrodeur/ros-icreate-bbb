@@ -1,0 +1,14 @@
+<launch>
+
+	<arg name="current_time" default="" />
+	<arg name="path" default="" />
+	<arg name="file" default="session_$(arg current_time).bag" />
+	
+	<node pkg="rosbag" type="record" name="rosbag_record" output="screen"
+	       args="--regex '/(rosout|rosout_agg|imu/raw|irobot_create/(.*)|audio/(left|right)/raw|video/(left|right)/raw|tf)' --quiet --buffsize=128 --output-name=$(arg path)$(arg file)"/>
+	
+	<node name="remote_control" pkg="action" type="remote_control.py" output="screen">
+	    <param name="joystick_dev" value="/dev/input/js0" />
+    </node>
+
+</launch>

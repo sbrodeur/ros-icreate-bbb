@@ -1,0 +1,52 @@
+<launch>
+
+<node name="irobot_create" pkg="irobot_create" type="driver.py" output="screen" >
+	<param name="name" value="irobot_create" />        
+	<param name="port" value="/dev/ttyS1" />
+	<param name="safety" value="True" />
+    <param name="autodock" value="0.0" />
+</node>
+ 
+<node name="video1" pkg="camera" type="capture" output="screen">
+    <param name="video_device" value="/dev/video6" />
+    <param name="width" value="640" />
+    <param name="height" value="480" />
+    <param name="framerate" value="15" />
+    <param name="camera_name" value="left"/>
+    <param name="output" value="/video/left/raw" />
+</node>
+
+<node name="video2" pkg="camera" type="capture" output="screen">
+    <param name="video_device" value="/dev/video7" />
+    <param name="width" value="640" />
+    <param name="height" value="480" />
+    <param name="framerate" value="15" />
+    <param name="camera_name" value="right"/>
+    <param name="output" value="/video/right/raw" />
+</node>
+
+<node name="mic1" pkg="audio" type="capture.py" output="screen">
+    <param name="device" value="0" />
+    <param name="rate" value="16000" />
+    <param name="channels" value="1" />
+    <param name="buffer_size" value="2048" />
+    <param name="mic_name" value="left"/>
+    <param name="output" value="/audio/left/raw" />
+</node>
+
+<node name="mic2" pkg="audio" type="capture.py" output="screen">
+    <param name="device" value="1" />
+    <param name="rate" value="16000" />
+    <param name="channels" value="1" />
+    <param name="buffer_size" value="2048" />
+    <param name="mic_name" value="left"/>
+    <param name="output" value="/audio/right/raw" />
+</node>
+
+<node name="imu" pkg="imu" type="imu_capture" output="screen">
+    <param name="output" value="/imu/raw" />
+    <param name="rate" value="20.0" />
+</node>
+
+</launch>
+

@@ -1,0 +1,11 @@
+[Unit]
+Description=Launcher for the ROS master, parameter server and rosout logging node
+Requires=multi-user.target
+After=multi-user.target
+
+[Service]
+ExecStart=/root/work/ros-icreate-bbb/scripts/ros.sh
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
