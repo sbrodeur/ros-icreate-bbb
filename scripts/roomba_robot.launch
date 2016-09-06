@@ -4,16 +4,18 @@
 	<param name="name" value="irobot_create" />        
 	<param name="port" value="/dev/ttyS1" />
 	<param name="safety" value="True" />
+	<param name="charging" value="False" />
     <param name="autodock" value="0.0" />
 </node>
- 
+
+
 <node name="video1" pkg="camera" type="capture" output="screen">
     <param name="video_device" value="/dev/video6" />
     <param name="width" value="640" />
     <param name="height" value="480" />
     <param name="framerate" value="15" />
     <param name="camera_name" value="left"/>
-    <param name="output" value="/video/left/raw" />
+    <param name="output" value="/video/left/compressed" />
 </node>
 
 <node name="video2" pkg="camera" type="capture" output="screen">
@@ -22,7 +24,7 @@
     <param name="height" value="480" />
     <param name="framerate" value="15" />
     <param name="camera_name" value="right"/>
-    <param name="output" value="/video/right/raw" />
+    <param name="output" value="/video/right/compressed" />
 </node>
 
 <node name="mic1" pkg="audio" type="capture.py" output="screen">
@@ -39,13 +41,24 @@
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
     <param name="buffer_size" value="2048" />
-    <param name="mic_name" value="left"/>
+    <param name="mic_name" value="right"/>
     <param name="output" value="/audio/right/raw" />
 </node>
 
 <node name="imu" pkg="imu" type="imu_capture" output="screen">
-    <param name="output" value="/imu/raw" />
+    <param name="outputPos" value="/imu/data_raw" />
+    <param name="outputMag" value="/imu/mag" />
+    <param name="outputTemp" value="/imu/temp" />
     <param name="rate" value="20.0" />
+</node>
+
+<node name="madgwick" pkg="imu_filter_madgwick" type="imu_filter_node" output="screen" >
+    <param name="use_mag" value="True"/>
+    <param name="publish_tf" value="True"/>
+    <param name="reverse_tf" value="False"/>
+    <param name="fixed_frame" value="True"/>
+    <param name="publish_debug_topics" value="False"/>
+    <param name="use_magnetic_field_msg" value="True"/>
 </node>
 
 </launch>

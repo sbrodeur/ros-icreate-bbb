@@ -52,9 +52,12 @@ public:
   {
 	nh_.param("input", input, std::string("/video/default/rgb"));
 
+    //ROS_DEBUG("Image viewer started");
 	cvNamedWindow(input.c_str());
 	cvStartWindowThread();
 
+    //ROS_ERROR("Viewer window started");
+    
     // Subscribe to input video feed and publish output video feed
 	image_transport::TransportHints hints("compressed", ros::TransportHints());
     image_sub_ = it_.subscribe(input, 1, &ImageViewer::imageCallback, this, hints);
@@ -62,6 +65,7 @@ public:
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
+  //ROS_ERROR("Callback entered");
   cv_bridge::CvImagePtr cv_ptr;
   try
   {
@@ -74,7 +78,13 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
  
   if(cv_ptr)
   {
+      //ROS_ERROR("Viewer showing image");
 	  imshow(input, cv_ptr->image);
+      waitKey(10);
+  }
+  else
+  {
+          ROS_ERROR("The cv_ptr is NULL");
   }
 }
 
@@ -83,10 +93,19 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
 int main(int argc, char** argv)
 {
+  
+  //ROS_ERROR("Started viewer main");
+  
   ros::init(argc, argv, "viewer");
 
+  //ROS_ERROR("Initialize viewer");
+  
   ImageViewer iv;
+  
+  //ROS_ERROR("Viewer :Spining now");
   ros::spin();
+  
+  //ROS_ERROR("Viewer is done, destroying window");
 
   cvDestroyWindow("view");
   return 0;

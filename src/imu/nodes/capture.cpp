@@ -33,7 +33,13 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <std_msgs/UInt8MultiArray.h>
-#include <imu/ImuPacket.h>
+//#include <imu/ImuPacket.h>
+
+#include <sensor_msgs/Imu.h>
+#include <geometry_msgs/Quaternion.h>
+#include <geometry_msgs/Vector3.h>
+#include <sensor_msgs/MagneticField.h>
+#include <sensor_msgs/Temperature.h>
 
 #include <imu/L3GD20Gyro.h>
 #include <imu/LMS303.h>
@@ -41,76 +47,161 @@
 using namespace std;
 
 #define I2CBus	2
+#define G_ACC   9.81
+#define PI  3.14159
 
 class CaptureNode {
 
-public:
-	ros::NodeHandle node_;
-	ros::Publisher pub_;
-	std::string output_;
+    public:
+        ros::NodeHandle node_;
+        ros::Publisher pubPos_;
+        ros::Publisher pubMag_;
+        ros::Publisher pubTemp_;
+        std::string outputPos_;
+        std::string outputMag_;
+        std::string outputTemp_;
 
-	L3GD20Gyro gyro_;
-	LMS303 lms303_;
-	double rate_;
+        L3GD20Gyro gyro_;
+        LMS303 lms303_;
+        double rate_;
 
-	CaptureNode() :
-			node_("~"), gyro_(I2CBus, 0x6B),  lms303_(I2CBus, 0x1D){
+        CaptureNode() :
+            node_("~"), gyro_(I2CBus, 0x6B),  lms303_(I2CBus, 0x1D){
 
-		gyro_.setGyroDataRate(DR_GYRO_100HZ);
-		gyro_.setGyroScale(SCALE_GYRO_245dps);
+                gyro_.setGyroDataRate(DR_GYRO_100HZ);
+                gyro_.setGyroScale(SCALE_GYRO_245dps);
 
-		lms303_.setMagDataRate(DR_MAG_100HZ);
-		lms303_.setMagScale(SCALE_MAG_2gauss);
-		lms303_.setAccelDataRate(DR_ACCEL_100HZ);
-		lms303_.setAccelScale(SCALE_ACCEL_4g);
+                lms303_.setMagDataRate(DR_MAG_100HZ);
+                lms303_.setMagScale(SCALE_MAG_2gauss);
+                lms303_.setAccelDataRate(DR_ACCEL_100HZ);
+                lms303_.setAccelScale(SCALE_ACCEL_4g);
 
-		node_.param("output", output_, std::string("imu/raw"));
-		node_.param("rate", rate_, 15.0);
+                node_.param("outputPos", outputPos_, std::string("imu/pos/raw"));
+                node_.param("outputMag", outputMag_, std::string("imu/mag/raw"));
+                node_.param("outputTemp", outputTemp_, std::string("imu/temp/raw"));
+                node_.param("rate", rate_, 15.0);
 
-		pub_ = node_.advertise<imu::ImuPacket>(output_, 1);
-	}
+                pubPos_ = node_.advertise<sensor_msgs::Imu>(outputPos_, 1);
+                pubMag_ = node_.advertise<sensor_msgs::MagneticField>(outputMag_, 1);
+                pubTemp_ = node_.advertise<sensor_msgs::Temperature>(outputTemp_, 1);
+            }
 
-	virtual ~CaptureNode() {
-		// Empty
-	}
+        virtual ~CaptureNode() {
+            // Empty
+        }
 
-	bool spin() {
-		ros::Rate rate(rate_);
-		while (node_.ok()) {
-			lms303_.readFullSensorState();
-			gyro_.readFullSensorState();
+        bool spin() {
+            ros::Rate rate(rate_);
+            while (node_.ok()) {
+                lms303_.readFullSensorState();
+                gyro_.readFullSensorState();
 
-			imu::ImuPacket msg;
+                /*
+                   imu::ImuPacket msg;
 
-			msg.header.stamp = ros::Time::now();
-			msg.header.frame_id = "/imu";
+                   msg.header.stamp = ros::Time::now();
+                   msg.header.frame_id = "/imu";
 
-			msg.fs = (int) rate_;
-			msg.accelX = lms303_.getAccelX();
-			msg.accelY = lms303_.getAccelY();
-			msg.accelZ = lms303_.getAccelZ();
-			msg.pitch = lms303_.getPitch();
-			msg.roll = lms303_.getRoll();
-			msg.magX = lms303_.getMagX();
-			msg.magY = lms303_.getMagY();
-			msg.magZ = lms303_.getMagZ();
-			msg.gyroX = gyro_.getGyroX();
-			msg.gyroY = gyro_.getGyroY();
-			msg.gyroZ = gyro_.getGyroZ();
-			msg.coreTemp = lms303_.getTemperature();
+                   msg.fs = (int) rate_;
+                   msg.accelX = lms303_.getAccelX();
+                   msg.accelY = lms303_.getAccelY();
+                   msg.accelZ = lms303_.getAccelZ();
+                   msg.pitch = lms303_.getPitch();
+                   msg.roll = lms303_.getRoll();
+                   msg.magX = lms303_.getMagX();
+                   msg.magY = lms303_.getMagY();
+                   msg.magZ = lms303_.getMagZ();
+                   msg.gyroX = gyro_.getGyroX();
+                   msg.gyroY = gyro_.getGyroY();
+                   msg.gyroZ = gyro_.getGyroZ();
+                   msg.coreTemp = lms303_.getTemperature();
+                 */
+                //TODO Check if can this all can be simply initialised (could improve performance)
+                // Positioning message
+                sensor_msgs::Imu msgPos;
 
-			pub_.publish(msg);
-			
-			rate.sleep();
-		}
-		return true;
-	}
+                msgPos.header.stamp = ros::Time::now();
+                msgPos.header.frame_id = "/imu/pos";
+
+                msgPos.orientation          = quaternionFromPitchRoll(lms303_.getPitch(), 
+                                                                   lms303_.getRoll());    
+                //msg.orientation_covariance         = ;
+                //Convert to rad/sec
+                msgPos.angular_velocity.x = (gyro_.getGyroX()/180)*PI;
+                msgPos.angular_velocity.y = (gyro_.getGyroY()/180)*PI;
+                msgPos.angular_velocity.z = (gyro_.getGyroZ()/180)*PI;
+                
+                //msg.angular_velocity_covariance    = ;
+                //Convert from g's to m/s/s
+                msgPos.linear_acceleration.x = G_ACC*lms303_.getAccelX();
+                msgPos.linear_acceleration.y = G_ACC*lms303_.getAccelY();
+                msgPos.linear_acceleration.z = G_ACC*lms303_.getAccelZ();
+                
+                //msg.linear_acceleration_covariance = ;
+
+                pubPos_.publish(msgPos);
+
+                // Magnetic orientation message
+                sensor_msgs::MagneticField msgMag;
+
+                msgMag.header.stamp = ros::Time::now();
+                msgMag.header.frame_id = "/imu/mag";
+
+                msgMag.magnetic_field.x = lms303_.getMagX();
+                msgMag.magnetic_field.y = lms303_.getMagY();
+                msgMag.magnetic_field.z = lms303_.getMagZ();
+
+                pubMag_.publish(msgMag);
+
+
+                // Temperature message
+                sensor_msgs::Temperature msgTemp;
+
+                msgTemp.header.stamp = ros::Time::now();
+                msgTemp.header.frame_id = "/imu/temp";
+
+                msgTemp.temperature = lms303_.getTemperature();
+                
+                pubTemp_.publish(msgTemp);
+                
+                rate.sleep();
+            }
+            return true;
+        }
+
+
+        geometry_msgs::Quaternion quaternionFromPitchRoll(float iPitch, float iRoll)
+        {
+            
+            float wPitchRad = iPitch/180 * PI;
+            float wRollRad  = iRoll/180 * PI;
+            float wYawRad = 0;
+
+            float C1 = cos(wYawRad/2);
+            float C2 = cos(wPitchRad/2);
+            float C3 = cos(wRollRad/2);
+            float S1 = sin(wYawRad/2);
+            float S2 = sin(wPitchRad/2);
+            float S3 = sin(wRollRad/2);
+            
+            geometry_msgs::Quaternion wQuart;
+            //wQuart.w = sqrt(1.0 + C1*C2 + C1*C3 - S1*S2*S3 + C2*C3)/2.0;
+            //wQuart.x = (C2*S3 + C1*S3 + S1*S2*C3)/(4.0*wQuart.w);  
+            //wQuart.y = (S1*C2 + S1*C3 + C1*S2*S3)/(4.0*wQuart.w);
+            //wQuart.z = (-S1*S3 + C1*S3*C3 + S2)/(4.0*wQuart.w);
+            wQuart.w = C1*C2*C3 - S1*S2*S3;
+            wQuart.x = S1*S2*C3 + C1*C2*S3;
+            wQuart.y = S1*C2*C3 + C1*S2*S3;
+            wQuart.z = C1*S2*C3 - S1*C2*S3;
+
+            return wQuart;
+        }
 };
 
 int main(int argc, char **argv) {
-	ros::init(argc, argv, "capture");
+    ros::init(argc, argv, "capture");
 
-	CaptureNode a;
-	a.spin();
-	return 0;
+    CaptureNode a;
+    a.spin();
+    return 0;
 }
