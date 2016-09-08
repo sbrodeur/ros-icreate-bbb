@@ -104,8 +104,8 @@ class CaptureNode {
             sensor_msgs::CameraInfo wCamInfo;
 
             wCamInfo.header.stamp = ros::Time::now();
-            wCamInfo.height = 480;
-            wCamInfo.width  = 640;
+            wCamInfo.height = height_;
+            wCamInfo.width  = width_;
 
             pubCamInfo.publish(wCamInfo);
 
