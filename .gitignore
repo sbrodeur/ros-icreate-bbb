@@ -1,7 +1,6 @@
 cmake_install.cmake
 build/
 devel/
-bin/
 msg_gen/
 srv_gen/
 *~

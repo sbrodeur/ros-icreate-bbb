@@ -35,6 +35,7 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <sensor_msgs/CompressedImage.h>
+#include <sensor_msgs/CameraInfo.h>
 #include <camera_info_manager/camera_info_manager.h>
 
 #include <camera/capturev4l2.h>
@@ -49,6 +50,7 @@ class CaptureNode {
     public:
         ros::NodeHandle node_;
         ros::Publisher pub_;
+        ros::Publisher pubCamInfo;
         boost::shared_ptr<camera_info_manager::CameraInfoManager> cinfo_;
         VideoCapture* capture_;
         std::string camera_name_;
@@ -68,7 +70,8 @@ class CaptureNode {
 
                 std::string nodeName;
                 pub_ = node_.advertise<sensor_msgs::CompressedImage>(output_, 1);
-
+                pubCamInfo = node_.advertise<sensor_msgs::CameraInfo>("/video/" + camera_name_ + "/camera_info",1);
+                 
                 node_.param("camera_info_url", camera_info_url_, std::string(""));
                 cinfo_.reset(
                         new camera_info_manager::CameraInfoManager(node_, camera_name_,
@@ -96,6 +99,15 @@ class CaptureNode {
             memcpy(&(msg.data[0]), &frame[0], frame.size());
 
             pub_.publish(msg);
+            
+            
+            sensor_msgs::CameraInfo wCamInfo;
+
+            wCamInfo.header.stamp = ros::Time::now();
+            wCamInfo.height = 480;
+            wCamInfo.width  = 640;
+
+            pubCamInfo.publish(wCamInfo);
 
             return true;
         }
