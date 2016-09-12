@@ -1,0 +1,7 @@
+Header header
+uint16 wallSignal
+uint16 cliffLeftSignal
+uint16 cliffFrontLeftSignal
+uint16 cliffFrontRightSignal
+uint16 cliffRightSignal
+

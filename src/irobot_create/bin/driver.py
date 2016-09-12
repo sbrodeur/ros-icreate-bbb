@@ -13,7 +13,7 @@ from nav_msgs.msg import Odometry
 from tf.broadcaster import TransformBroadcaster
 from sensor_msgs.msg import BatteryState
 
-from irobot_create.msg import SensorPacket, MotorControl
+from irobot_create.msg import SensorPacket, MotorControl,  MotorRequest, Contact, IrRange, BatteryIrobot
 from irobot_create.srv import *
 
 class SafetyRestriction(object):
@@ -31,9 +31,14 @@ class CreateDriver:
         self.chargingEnabled = rospy.get_param('~charging', True)
         self.safetyEnabled = rospy.get_param('~safety', True)
         self.create = Create(port)
+
         self.packetPub = rospy.Publisher(self.name + '/sensorPacket', SensorPacket, queue_size=1)
-        self.battPub = rospy.Publisher(self.name + '/battery', BatteryState, queue_size=1)
+        self.battPub = rospy.Publisher(self.name + '/battery', BatteryIrobot, queue_size=1)
         self.odomPub = rospy.Publisher(self.name + '/odom',Odometry, queue_size=1)
+        self.contactPub = rospy.Publisher(self.name + '/contact', Contact, queue_size=1)
+        self.motorPub = rospy.Publisher(self.name + '/motorRequests', MotorRequest, queue_size=1)
+        self.irRangePub = rospy.Publisher(self.name + '/irRange', IrRange, queue_size=1)
+
         self.odomBroadcaster = TransformBroadcaster()
         self.fields = ['wheeldropCaster','wheeldropLeft','wheeldropRight','bumpLeft','bumpRight','wall','cliffLeft','cliffFrontLeft','cliffFrontRight','cliffRight','virtualWall','infraredByte','advance','play','distance','angle','chargingState','voltage','current','batteryTemperature','batteryCharge','batteryCapacity','wallSignal','cliffLeftSignal','cliffFrontLeftSignal','cliffFrontRightSignal','cliffRightSignal','homeBase','internalCharger','songNumber','songPlaying','requestedRightVelocity','requestedLeftVelocity']
         self.then = datetime.now() 
@@ -84,11 +89,15 @@ class CreateDriver:
         return isProblem
 
     def checkBattery(self):
-        chargeRemaining = float(self.create.batteryCharge) / self.create.batteryCapacity * 100.0 
+        chargeRemaining = float(self.create.batteryCharge) / float(self.create.batteryCapacity) * 100.0 
         level = 255 - int(chargeRemaining / 100.0 * 255)
         self.create.leds(0,0,level,255)
-        if self.create.voltage < 14.0 or chargeRemaining < 10.0:
+        if  chargeRemaining < 10.0:
             rospy.loginfo("Battery level is low!")
+            self.create.beep()
+        if self.create.voltage < 14.0 :
+            rospy.loginfo("voltage level is low!")
+            self.create.beep()
             self.create.beep()
         self.lastBatteryCheck = datetime.now()
 
@@ -151,7 +160,8 @@ class CreateDriver:
             "base_link",
             "odom"
             )
-
+        
+        #Odometry Related
         odom = Odometry()
         odom.header.stamp = rospy.Time.now()
         odom.header.frame_id = "odom"
@@ -166,25 +176,68 @@ class CreateDriver:
         odom.twist.twist.angular.z = dth
 
         self.odomPub.publish(odom)
-
+        
+        #Sensor Packet TODO: remove
         packet = SensorPacket()
         for field in self.fields:
             packet.__setattr__(field,self.create.__getattr__(field))
         self.packetPub.publish(packet)
 
-        battPacket = BatteryState()
-        battPacket.voltage = self.create.__getattr__('voltage')
-        battPacket.current = self.create.__getattr__('current')
-        battPacket.charge  = self.create.__getattr__('batteryCharge')
-        battPacket.capacity = self.create.__getattr__('batteryCapacity')
-        #battPacket.design_capacity = self.create.__getattr__('voltage')
-        battPacket.percentage = battPacket.charge/battPacket.capacity
-        #battPacket.power_supply_status = self.create.__getattr__('voltage')
-        #battPacket.power_supply_health = self.create.__getattr__('voltage')
-        #battPacket.power_supply_technology = self.create.__getattr__('voltage')
-        battPacket.present = True
+        #Contact Related
+        contPacket = Contact()
+        contPacket.header.stamp = rospy.Time.now()
+        contPacket.header.frame_id = "Contact"
+        contPacket.wheeldropCaster = self.create.__getattr__('wheeldropCaster')
+        contPacket.wheeldropLeft = self.create.__getattr__('wheeldropLeft')
+        contPacket.wheeldropRight = self.create.__getattr__('wheeldropRight')
+        contPacket.bumpLeft = self.create.__getattr__('bumpLeft')
+        contPacket.bumpRight = self.create.__getattr__('bumpRight')
+        contPacket.wall = self.create.__getattr__('wall')
+        contPacket.cliffLeft = self.create.__getattr__('cliffLeft')
+        contPacket.cliffFrontLeft = self.create.__getattr__('cliffFrontLeft')
+        contPacket.cliffRight = self.create.__getattr__('cliffRight')
+        contPacket.cliffFrontRight = self.create.__getattr__('cliffFrontRight')
+        contPacket.virtualWall = self.create.__getattr__('virtualWall')
+        self.contactPub.publish(contPacket)
+
+        #Battery Related 
+        battPacket = BatteryIrobot()
+        battPacket.header.stamp = rospy.Time.now()
+        battPacket.header.frame_id = "Battery"
+        battPacket.batteryState.voltage = self.create.__getattr__('voltage')
+        battPacket.batteryState.current = self.create.__getattr__('current')
+        battPacket.batteryState.charge  = self.create.__getattr__('batteryCharge')
+        battPacket.batteryState.capacity = self.create.__getattr__('batteryCapacity')
+        battPacket.batteryState.percentage = float(battPacket.batteryState.charge)/float(battPacket.batteryState.capacity)
+        chargeState = self.create.__getattr__('chargingState')
+        battPacket.batteryState.power_supply_status = self.convertChargingStatus(chargeState)
+        battPacket.batteryState.present = True
+
+        battPacket.batteryTemperature.temperature = self.create.__getattr__('batteryTemperature')
+        battPacket.homebase = self.create.__getattr__('homeBase')
+        battPacket.internalCharger = self.create.__getattr__('internalCharger')
         
         self.battPub.publish(battPacket)
+
+        #Motor Request Related
+        motorPacket = MotorRequest()
+        motorPacket.header.stamp = rospy.Time.now()
+        motorPacket.header.frame_id = "MotorRequests"
+        motorPacket.requestedRightVelocity = self.create.__getattr__('requestedRightVelocity') 
+        motorPacket.requestedLeftVelocity = self.create.__getattr__('requestedLeftVelocity')
+        self.motorPub.publish(motorPacket)
+
+        #IR range Related
+        irPacket = IrRange()
+        irPacket.header.stamp = rospy.Time.now()
+        irPacket.header.frame_id = "irRanges"
+        irPacket.wallSignal = self.create.__getattr__('wallSignal')
+        irPacket.cliffLeftSignal = self.create.__getattr__('cliffLeftSignal')     
+        irPacket.cliffFrontLeftSignal = self.create.__getattr__('cliffFrontLeftSignal')     
+        irPacket.cliffFrontRightSignal = self.create.__getattr__('cliffFrontRightSignal')     
+        irPacket.cliffRightSignal = self.create.__getattr__('cliffRightSignal')
+        self.irRangePub.publish(irPacket)
+
 
         charge_level = float(packet.batteryCharge) / float(packet.batteryCapacity)
         if (self.docking and packet.homeBase and charge_level > 0.95):
@@ -294,6 +347,20 @@ class CreateDriver:
                 commandIgnored = True
         else:
             commandIgnored=True
+    
+    def convertChargingStatus(self, irobot_status):
+        return {
+                   #(icreate code) -> (battery message equivalent)
+            0 : 3, #Not charging
+            1 : 0, #Reconditioning Charging -> Unknown
+            2 : 1, #Full charging -> Full
+            3 : 4, #Trickle Charging -> Charging
+            4 : 2, #Waiting -> Discharging
+            5 : 0, #Charging fault condition -> Unknown
+        }.get(irobot_status, 0)
+
+
+
 
 if __name__ == '__main__':
     rospy.init_node('irobot_create')

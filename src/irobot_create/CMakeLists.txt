@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(irobot_create)
 
-find_package(catkin REQUIRED COMPONENTS message_generation std_msgs)
+find_package(catkin REQUIRED COMPONENTS message_generation std_msgs sensor_msgs)
 
-add_message_files(DIRECTORY msg FILES SensorPacket.msg MotorControl.msg)
+add_message_files(DIRECTORY msg FILES SensorPacket.msg MotorControl.msg Contact.msg BatteryIrobot.msg MotorRequest.msg IrRange.msg) 
 add_service_files(DIRECTORY srv FILES Brake.srv Circle.srv Demo.srv Dock.srv Leds.srv Reset.srv Start.srv Stop.srv Tank.srv Turn.srv)
 
 catkin_python_setup()
 
-generate_messages(DEPENDENCIES std_msgs)
+generate_messages(DEPENDENCIES std_msgs sensor_msgs)
 
-catkin_package(CATKIN_DEPENDS message_runtime std_msgs)
+catkin_package(CATKIN_DEPENDS message_runtime std_msgs sensor_msgs)
 
 catkin_install_python(PROGRAMS
   bin/driver.py
