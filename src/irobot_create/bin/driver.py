@@ -13,7 +13,7 @@ from nav_msgs.msg import Odometry
 from tf.broadcaster import TransformBroadcaster
 from sensor_msgs.msg import BatteryState
 
-from irobot_create.msg import SensorPacket, MotorControl,  MotorRequest, Contact, IrRange, BatteryIrobot
+from irobot_create.msg import MotorControl,  MotorRequest, Contact, IrRange 
 from irobot_create.srv import *
 
 class SafetyRestriction(object):
@@ -32,8 +32,7 @@ class CreateDriver:
         self.safetyEnabled = rospy.get_param('~safety', True)
         self.create = Create(port)
 
-        self.packetPub = rospy.Publisher(self.name + '/sensorPacket', SensorPacket, queue_size=1)
-        self.battPub = rospy.Publisher(self.name + '/battery', BatteryIrobot, queue_size=1)
+        self.battPub = rospy.Publisher(self.name + '/battery', BatteryState, queue_size=1)
         self.odomPub = rospy.Publisher(self.name + '/odom',Odometry, queue_size=1)
         self.contactPub = rospy.Publisher(self.name + '/contact', Contact, queue_size=1)
         self.motorPub = rospy.Publisher(self.name + '/motorRequests', MotorRequest, queue_size=1)
@@ -177,11 +176,6 @@ class CreateDriver:
 
         self.odomPub.publish(odom)
         
-        #Sensor Packet TODO: remove
-        packet = SensorPacket()
-        for field in self.fields:
-            packet.__setattr__(field,self.create.__getattr__(field))
-        self.packetPub.publish(packet)
 
         #Contact Related
         contPacket = Contact()
@@ -201,21 +195,17 @@ class CreateDriver:
         self.contactPub.publish(contPacket)
 
         #Battery Related 
-        battPacket = BatteryIrobot()
+        battPacket = BatteryState()
         battPacket.header.stamp = rospy.Time.now()
         battPacket.header.frame_id = "Battery"
-        battPacket.batteryState.voltage = self.create.__getattr__('voltage')
-        battPacket.batteryState.current = self.create.__getattr__('current')
-        battPacket.batteryState.charge  = self.create.__getattr__('batteryCharge')
-        battPacket.batteryState.capacity = self.create.__getattr__('batteryCapacity')
-        battPacket.batteryState.percentage = float(battPacket.batteryState.charge)/float(battPacket.batteryState.capacity)
+        battPacket.voltage = self.create.__getattr__('voltage')
+        battPacket.current = self.create.__getattr__('current')
+        battPacket.charge  = self.create.__getattr__('batteryCharge')
+        battPacket.capacity = self.create.__getattr__('batteryCapacity')
+        battPacket.percentage = float(battPacket.charge)/float(battPacket.capacity)
         chargeState = self.create.__getattr__('chargingState')
-        battPacket.batteryState.power_supply_status = self.convertChargingStatus(chargeState)
-        battPacket.batteryState.present = True
-
-        battPacket.batteryTemperature.temperature = self.create.__getattr__('batteryTemperature')
-        battPacket.homebase = self.create.__getattr__('homeBase')
-        battPacket.internalCharger = self.create.__getattr__('internalCharger')
+        battPacket.power_supply_status = self.convertChargingStatus(chargeState)
+        battPacket.present = True
         
         self.battPub.publish(battPacket)
 
@@ -239,15 +229,15 @@ class CreateDriver:
         self.irRangePub.publish(irPacket)
 
 
-        charge_level = float(packet.batteryCharge) / float(packet.batteryCapacity)
-        if (self.docking and packet.homeBase and charge_level > 0.95):
-            self.docking = False
-            self.create.reset()
-            rospy.sleep(1)
-            self.create.start()
-        elif (not self.docking and charge_level < self.autodock):
-            self.create.demo(1)
-            self.docking = True
+        #charge_level = float(battPacket.batteryCharge) / float(battPacket.batteryCapacity)
+        #if (self.docking and packet.homeBase and charge_level > 0.95):
+        #    self.docking = False
+        #    self.create.reset()
+        #    rospy.sleep(1)
+        #    self.create.start()
+        #elif (not self.docking and charge_level < self.autodock):
+        #    self.create.demo(1)
+        #    self.docking = True
 
     def brake(self,req):
         if (req.brake):
