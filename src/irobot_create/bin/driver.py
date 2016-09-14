@@ -13,8 +13,8 @@ from nav_msgs.msg import Odometry
 from tf.broadcaster import TransformBroadcaster
 from sensor_msgs.msg import BatteryState
 
-from irobot_create.msg import MotorControl,  MotorRequest, Contact, IrRange, OdomRaw
-from irobot_create.srv import *
+from irobot_create.msg import MotorSpeed, Contact, IrRange
+from irobot_create.srv import Brake, Circle, Demo, Dock, Leds, Reset, Start, Stop, Tank, Turn
 
 class SafetyRestriction(object):
     NONE = 0
@@ -34,18 +34,14 @@ class CreateDriver:
         self.create = Create(port)
 
         #Publisher creations
-        #self.packetPub = rospy.Publisher(self.name + '/sensorPacket', SensorPacket, queue_size=1)
-
         self.battPub = rospy.Publisher(self.name + '/battery', BatteryState, queue_size=1)
         self.odomPub = rospy.Publisher(self.name + '/odom',Odometry, queue_size=1)
-        self.odom_rawPub = rospy.Publisher(self.name + '/odom_raw',OdomRaw, queue_size=1)
         self.contactPub = rospy.Publisher(self.name + '/contact', Contact, queue_size=1)
-        self.motorPub = rospy.Publisher(self.name + '/motorRequests', MotorRequest, queue_size=1)
+        self.motorPub = rospy.Publisher(self.name + '/motors', MotorSpeed, queue_size=1)
         self.irRangePub = rospy.Publisher(self.name + '/irRange', IrRange, queue_size=1)
 
         #Variables
         self.odomBroadcaster = TransformBroadcaster()
-        self.fields = ['wheeldropCaster','wheeldropLeft','wheeldropRight','bumpLeft','bumpRight','wall','cliffLeft','cliffFrontLeft','cliffFrontRight','cliffRight','virtualWall','infraredByte','advance','play','distance','angle','chargingState','voltage','current','batteryTemperature','batteryCharge','batteryCapacity','wallSignal','cliffLeftSignal','cliffFrontLeftSignal','cliffFrontRightSignal','cliffRightSignal','homeBase','internalCharger','songNumber','songPlaying','requestedRightVelocity','requestedLeftVelocity']
         self.then = datetime.now() 
         self.x = 0
         self.y = 0
@@ -167,13 +163,6 @@ class CreateDriver:
             )
         
         #Odometry Related
-
-        odomRawPacket = OdomRaw()
-        odomRawPacket.header.stamp =         rospy.Time.now()
-        odomRawPacket.header.frame_id =      "Odom_raw"
-        odomRawPacket.angle =                self.create.__getattr__('angle')
-        odomRawPacket.distance =              self.create.__getattr__('distance')
-
         odom = Odometry()
         odom.header.stamp = rospy.Time.now()
         odom.header.frame_id = "odom"
@@ -193,7 +182,7 @@ class CreateDriver:
         #Contact Related
         contPacket = Contact()
         contPacket.header.stamp = rospy.Time.now()
-        contPacket.header.frame_id = "Contact"
+        contPacket.header.frame_id = "base_link"
         contPacket.wheeldropCaster = self.create.__getattr__('wheeldropCaster')
         contPacket.wheeldropLeft =   self.create.__getattr__('wheeldropLeft')
         contPacket.wheeldropRight =  self.create.__getattr__('wheeldropRight')
@@ -207,16 +196,10 @@ class CreateDriver:
         contPacket.virtualWall =     self.create.__getattr__('virtualWall')
         self.contactPub.publish(contPacket)
 
-	    #packet = SensorPacket()
-        #for field in self.fields:
-        #    packet.__setattr__(field,self.create.__getattr__(field))
-        #self.packetPub.publish(packet)
-
-
         #Battery Related 
         battPacket = BatteryState()
         battPacket.header.stamp =         rospy.Time.now()
-        battPacket.header.frame_id =      "Battery"
+        battPacket.header.frame_id =      "base_link"
         battPacket.voltage =              self.create.__getattr__('voltage')
         battPacket.current =              self.create.__getattr__('current')
         battPacket.charge  =              self.create.__getattr__('batteryCharge')
@@ -224,21 +207,20 @@ class CreateDriver:
         battPacket.percentage =           float(battPacket.charge)/float(battPacket.capacity)
         battPacket.power_supply_status =  self.convertChargingStatus(self.create.__getattr__('chargingState'))
         battPacket.present =              True
-        
         self.battPub.publish(battPacket)
 
         #Motor Request Related
-        motorPacket = MotorRequest()
+        motorPacket = MotorSpeed()
         motorPacket.header.stamp =             rospy.Time.now()
-        motorPacket.header.frame_id =          "MotorRequests"
-        motorPacket.requestedRightVelocity =   self.create.__getattr__('requestedRightVelocity') 
-        motorPacket.requestedLeftVelocity =    self.create.__getattr__('requestedLeftVelocity')
+        motorPacket.header.frame_id =          "base_link"
+        motorPacket.right =   self.create.__getattr__('requestedRightVelocity') 
+        motorPacket.left =    self.create.__getattr__('requestedLeftVelocity')
         self.motorPub.publish(motorPacket)
 
         #IR range Related
         irPacket = IrRange()
         irPacket.header.stamp =           rospy.Time.now()
-        irPacket.header.frame_id =        "irRanges"
+        irPacket.header.frame_id =        "base_link"
         irPacket.wallSignal =             self.create.__getattr__('wallSignal')
         irPacket.cliffLeftSignal =        self.create.__getattr__('cliffLeftSignal')     
         irPacket.cliffFrontLeftSignal =   self.create.__getattr__('cliffFrontLeftSignal')     
@@ -246,7 +228,7 @@ class CreateDriver:
         irPacket.cliffRightSignal =       self.create.__getattr__('cliffRightSignal')
         self.irRangePub.publish(irPacket)
 
-
+        # Handle docking
         charge_level = float(battPacket.charge) / float(battPacket.capacity)
         if (self.docking  and charge_level > 0.95):
             self.docking = False
@@ -381,9 +363,9 @@ if __name__ == '__main__':
     rospy.Service(driver.name + '/tank',Tank,driver.tank)
     rospy.Service(driver.name + '/turn',Turn,driver.turn)
     rospy.Service(driver.name + '/dock',Dock,driver.dock)
-
+    
     rospy.Subscriber(driver.name + "/cmd_twist", Twist, driver.twist)
-    rospy.Subscriber(driver.name + "/cmd_raw", MotorControl, driver.vel)
+    rospy.Subscriber(driver.name + "/cmd_raw", MotorSpeed, driver.vel)
 
     sleep(1)
     driver.start()

@@ -36,10 +36,11 @@ import time
 from time import sleep
 
 import rospy
-from irobot_create.msg import Contact, MotorControl, OdomRaw
+from irobot_create.msg import Contact, MotorSpeed
 from sensor_msgs.msg import BatteryState
 from irobot_create.srv import Tank, Dock
 from geometry_msgs.msg import Twist
+from nav_msgs.msg import Odometry
 
 class MotorAction:
     def __init__(self, leftSpeed, rightSpeed):
@@ -51,10 +52,37 @@ class DockAction:
     pass
 
 class RobotState:
-    contact = None
-    battery = None
-    odom = None
+    
+    def __init__(self, contact, battery, odom):
+        self.contact = contact
+        self.battery = battery
+        self.odom = odom
+        
+        self.lastPosition = None
+        self.distance = 0.0
 
+    def getOdomAngle(self):
+        # Quaternion to X-Y plane angle:
+        #         quaternion.x = 0.0 
+        #         quaternion.y = 0.0
+        #         quaternion.z = sin(self.th/2)
+        #         quaternion.w = cos(self.th/2)
+        th = 2.0 * np.arctan2(self.odom.pose.quaternion.z, self.odom.pose.quaternion.w)
+        return th
+        
+    def _updateDistance(self):
+        if self.lastPosition == None:
+            self.lastPosition = self.odom.pose.pose.position
+        
+        newPosition = self.odom.pose.pose.position
+        distance = np.sqrt((self.lastPosition.x - newPosition.x)**2 + 
+                           (self.lastPosition.y - newPosition.y)**2 + 
+                           (self.lastPosition.z - newPosition.z)**2)
+        self.distance += distance
+        
+    def getOdomDistance(self):
+        return self.distance
+    
 class Behaviour:
 
     def __init__(self, priority=0, controller=None):
@@ -92,8 +120,8 @@ class BehaviourController:
         self.input = rospy.get_param('~input', '/irobot_create')
         rospy.Subscriber(self.input + '/battery', BatteryState, BehaviourController.callback, self)
         rospy.Subscriber(self.input + '/contact', Contact, BehaviourController.callback, self)
-        rospy.Subscriber(self.input + '/odom_raw', OdomRaw, BehaviourController.callback, self)
-        self.rawPub = rospy.Publisher('/irobot_create/cmd_raw', MotorControl, queue_size=1)
+        rospy.Subscriber(self.input + '/odom', Odometry, BehaviourController.callback, self)
+        self.rawPub = rospy.Publisher('/irobot_create/cmd_raw', MotorSpeed, queue_size=1)
         
         self.behaviours = []
 
@@ -124,14 +152,15 @@ class BehaviourController:
                 self.state.battery = data
             elif(isinstance(data, Contact)):
                 self.state.contact = data
-            elif(isinstance(data, OdomRaw)):
+            elif(isinstance(data, Odometry)):
                 self.state.odom = data
+                self.state._updateDistance()
                 
     def executeAction(self, action, state):
         if isinstance(action, MotorAction):
             #if self.lastMotorAction == None or (self.lastMotorAction.leftSpeed != action.leftSpeed or self.lastMotorAction.rightSpeed != action.rightSpeed):
             # Send command to motor
-            msg = MotorControl()
+            msg = MotorSpeed()
             msg.left = action.leftSpeed
             msg.right = action.rightSpeed
             self.rawPub.publish(msg)
@@ -186,7 +215,7 @@ class Spiral(Behaviour):
         Behaviour.__init__(self, priority, controller)
     
     def executeSpin(self, state):
-        theta = 2.0 * np.pi * (state.odom.angle - self.angleRef) / 360.0
+        theta = 2.0 * np.pi * (state.getOdomAngle() - self.angleRef) / 360.0
         r = np.max(((Spiral.RADIUS / (2.0 * np.pi)) * theta, Spiral.RADIUS / (2.0 * np.pi)))
         k = (1.0 + (2 * r)/Spiral.WHEELBASE_DISTANCE) / ((2 * r)/Spiral.WHEELBASE_DISTANCE - 1.0)
         leftSpeed = 2.0 * Spiral.SPEED / (k + 1)
@@ -200,7 +229,7 @@ class Spiral(Behaviour):
         # Activation of behaviour
         if not self.isActive and not self.controller.isActiveBehaviour(ignored=[self]):
             self.activate()
-            self.angleRef = state.odom.angle
+            self.angleRef = state.getOdomAngle()
             self.mode = 'spin'
             rospy.logdebug("Spiral behaviour activated")
         elif self.isActive and self.controller.isActiveBehaviour(ignored=[self]):
@@ -233,7 +262,7 @@ class Wander(Behaviour):
         now = time.time()
         if Wander.ROTATION_PERIOD > 0.0 and now - self.lastRotation > Wander.ROTATION_PERIOD:
             self.angle = random.randrange(-45, 45)
-            self.angleRef = state.odom.angle
+            self.angleRef = state.getOdomAngle()
             self.mode = 'rotate'
             self.lastRotation = now
         return action
@@ -249,8 +278,8 @@ class Wander(Behaviour):
             action = MotorAction(0,Wander.SPEED)
             
         # Wait to get to proper angle
-        rospy.logdebug("Current state.odom.angle (%f desired): %f", self.angle, self.angleRef - state.angle)
-        if np.abs(self.angleRef - state.odom.angle) > np.abs(self.angle):
+        rospy.logdebug("Current angle (%f desired): %f", self.angle, self.angleRef - state.getOdomAngle())
+        if np.abs(self.angleRef - state.getOdomAngle()) > np.abs(self.angle):
             self.mode = 'move'
         return action
     
@@ -302,8 +331,8 @@ class AvoidObstacle(Behaviour):
             action = MotorAction(-AvoidObstacle.SPEED,AvoidObstacle.SPEED)
             
         # Wait to get to proper angle
-        rospy.logdebug("Current state.odom.angle (%f desired): %f", self.angle, self.angleRef - state.odom.angle)
-        if np.abs(self.angleRef - state.odom.angle) > np.abs(self.angle):
+        rospy.logdebug("Current angle (%f desired): %f", self.angle, self.angleRef - state.getOdomAngle())
+        if np.abs(self.angleRef - state.getOdomAngle()) > np.abs(self.angle):
             self.mode = None
         return action
     
@@ -316,8 +345,8 @@ class AvoidObstacle(Behaviour):
             action = MotorAction(-AvoidObstacle.SPEED,-AvoidObstacle.SPEED)
         
         # Wait to get to proper distance
-        rospy.logdebug("Current state.odom.distance (%f desired): %f", self.distance, self.distanceRef - state.odom.distance)
-        if np.abs(self.distanceRef - state.odom.distance) > np.abs(self.distance):
+        rospy.logdebug("Current distance (%f desired): %f", self.distance, self.distanceRef - state.getOdomDistance())
+        if np.abs(self.distanceRef - state.getOdomDistance()) > np.abs(self.distance):
             if self.mode == 'move':
                 self.mode = None
             elif self.mode == 'avoid':
@@ -334,27 +363,27 @@ class AvoidObstacle(Behaviour):
         elif self.cliffEnabled and (state.contact.cliffLeft or state.contact.cliffFrontLeft):
             # Turn right
             self.angle = random.randrange(25, 75)
-            self.angleRef = state.odom.angle
+            self.angleRef = state.getOdomAngle()
             self.mode = 'rotate'
         elif self.cliffEnabled and (state.contact.cliffFrontRight or state.contact.cliffRight):
             # Turn left
             self.angle = -random.randrange(25, 75)
-            self.angleRef = state.odom.angle
+            self.angleRef = state.getOdomAngle()
             self.mode = 'rotate'
         # Bumper detection
         elif self.bumperEnabled and state.contact.bumpLeft:
             # Turn right
             self.angle = random.randrange(25, 75)
-            self.angleRef = state.odom.angle
+            self.angleRef = state.getOdomAngle()
             self.distance = -AvoidObstacle.DISTANCE
-            self.distanceRef = state.odom.distance
+            self.distanceRef = state.getOdomDistance()
             self.mode = 'avoid'
         elif self.bumperEnabled and state.contact.bumpRight:
             # Turn left
             self.angle = -random.randrange(25, 75)
-            self.angleRef = state.odom.angle
+            self.angleRef = state.getOdomAngle()
             self.distance = -AvoidObstacle.DISTANCE
-            self.distanceRef = state.odom.distance
+            self.distanceRef = state.getOdomDistance()
             self.mode = 'avoid'
         elif self.bumperEnabled and state.contact.virtualWall:
             # Turn either left or right
@@ -365,9 +394,9 @@ class AvoidObstacle(Behaviour):
             else:
                 # Turn left
                 self.angle = -angle
-            self.angleRef = state.odom.angle
+            self.angleRef = state.getOdomAngle()
             self.distance = -AvoidObstacle.DISTANCE
-            self.distanceRef = state.odom.distance
+            self.distanceRef = state.getOdomDistance()
             self.mode = 'avoid'
 
         # Activation of the behaviour

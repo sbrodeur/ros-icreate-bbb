@@ -37,7 +37,6 @@ import time
 from fcntl import ioctl
 
 import rospy
-from irobot_create.msg import SensorPacket, MotorControl
 
 from action.behaviours import BehaviourController, Behaviour, MotorAction
 
