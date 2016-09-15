@@ -4,25 +4,10 @@ project(imu)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp message_generation std_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs)
 
 ## pkg-config libraries
 find_package(PkgConfig REQUIRED)
-
-################################################
-## Declare ROS messages, services and actions ##
-################################################
-
-## Generate messages in the 'msg' folder
-add_message_files(
-   DIRECTORY msg
-   FILES ImuPacket.msg
-)
-
-# Generate added messages and services with any dependencies listed here
-generate_messages(
-   DEPENDENCIES std_msgs
-)
 
 ###################################################
 ## Declare things to be passed to other projects ##
