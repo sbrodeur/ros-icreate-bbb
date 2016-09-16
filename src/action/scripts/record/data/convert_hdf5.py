@@ -58,81 +58,147 @@ class StateSaver(object):
         
         lastProcessed = self.countProcessed
         
-        if topic == '/imu/raw':
-            # Accelerometer
-            state = np.array([msg.accelX, msg.accelY, msg.accelZ], dtype=np.float32)
-            self.outHdf5.addState('accel', state, t, group='imu', variableShape=False, maxShape=None)
+        if topic == '/imu/data':
             
-            # Magnetometer
-            state = np.array([msg.magX, msg.magY, msg.magZ], dtype=np.float32)
-            self.outHdf5.addState('mag', state, t, group='imu', variableShape=False, maxShape=None)
+            # Orientation
+            state = np.array([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w], dtype=np.float64)
+            self.outHdf5.addState('orientation', state, t, group='imu', variableShape=False, maxShape=None)
             
-            # Gyroscope
-            state = np.array([msg.gyroX, msg.gyroY, msg.gyroZ], dtype=np.float32)
-            self.outHdf5.addState('gyro', state, t, group='imu', variableShape=False, maxShape=None)
+            # Angular velocity
+            state = np.array([msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z], dtype=np.float64)
+            self.outHdf5.addState('angular_velocity', state, t, group='imu', variableShape=False, maxShape=None)
+            
+            # Linear acceleration
+            state = np.array([msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z], dtype=np.float64)
+            self.outHdf5.addState('linear_acceleration', state, t, group='imu', variableShape=False, maxShape=None)
             
             self.countProcessed += 1
             
-        if topic == '/irobot_create/sensorPacket':
-            # Rescale velocities according to max absolute value (500 mm/sec)
-            leftVel = float(msg.requestedLeftVelocity) / 500.0
-            rightVel = float(msg.requestedRightVelocity) / 500.0
-            state = np.array([leftVel, rightVel], dtype=np.float32)
-            self.outHdf5.addState('motors', state, t, group=None, variableShape=False, maxShape=None)
+        if topic == '/imu/data_raw':
+            
+            # Orientation
+            state = np.array([msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w], dtype=np.float64)
+            self.outHdf5.addState('orientation_raw', state, t, group='imu', variableShape=False, maxShape=None)
+            
+            # Angular velocity
+            state = np.array([msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z], dtype=np.float64)
+            self.outHdf5.addState('angular_velocity_raw', state, t, group='imu', variableShape=False, maxShape=None)
+            
+            # Linear acceleration
+            state = np.array([msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z], dtype=np.float64)
+            self.outHdf5.addState('linear_acceleration_raw', state, t, group='imu', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
+            
+        if topic == '/imu/mag':
+            
+            # Magnetic field
+            state = np.array([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z], dtype=np.float64)
+            self.outHdf5.addState('magnetic_field', state, t, group='imu', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
+            
+        if topic == '/imu/temp':
+
+            # Temperature
+            state = np.array([msg.temperature], dtype=np.float64)
+            self.outHdf5.addState('temperature', state, t, group='imu', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
+            
+        if topic == '/irobot_create/battery':
+            
+            # State
+            state = np.array([msg.voltage, msg.current, msg.charge, msg.capacity, msg.design_capacity, msg.percentage], dtype=np.float32)
+            self.outHdf5.addState('charge', state, t, group='battery', variableShape=False, maxShape=None)
+            
+            # Status
+            state = np.array([msg.power_supply_status, msg.power_supply_health, msg.power_supply_technology], dtype=np.uint8)
+            self.outHdf5.addState('status', state, t, group='battery', variableShape=False, maxShape=None)
+            
             self.countProcessed += 1
         
-        if topic == '/video/left/raw/compressed':
+        if topic == '/video/left/compressed':
             state = np.fromstring(msg.data, dtype=np.uint8)
             self.outHdf5.addState('left', state, t, group='video', variableShape=True, maxShape=(32768,))
             self.countProcessed += 1
         
-        if topic == '/video/right/raw/compressed':
+        if topic == '/video/right/compressed':
             state = np.fromstring(msg.data, dtype=np.uint8)
             self.outHdf5.addState('right', state, t, group='video', variableShape=True, maxShape=(32768,))
             self.countProcessed += 1
             
         if topic == '/audio/left/raw':
-            state = np.array(msg.data, dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
+            state = np.array(msg.data, dtype=np.int16)
             self.outHdf5.addState('left', state, t, group='audio', variableShape=False, maxShape=None)
             self.countProcessed += 1
         
         if topic == '/audio/right/raw':
-            state = np.array(msg.data, dtype=np.int16).astype(np.float32) / np.iinfo(np.int16).max
+            state = np.array(msg.data, dtype=np.int16)
             self.outHdf5.addState('right', state, t, group='audio', variableShape=False, maxShape=None)
             self.countProcessed += 1
         
-        if topic == '/irobot_create/sensorPacket':
+        if topic == '/irobot_create/contact':
             
-            # Battery state
-            batteryVoltage = float(msg.voltage)
-            batteryCurrent = float(msg.current)
-            batteryCharge = float(msg.batteryCharge) / float(msg.batteryCapacity) * 100.0
-            state = np.array([batteryVoltage, batteryCurrent, batteryCharge], dtype=np.float32)
-            self.outHdf5.addState('battery', state, t, group='onboard', variableShape=False, maxShape=None)
-            
-            # Charging state: 3 states (Not charging, Reconditioning/Full charging, Trickle charging/Waiting)
-            if msg.chargingState in [0, 5]:
-                value = 0
-            elif msg.chargingState in [1, 2]:
-                value = 1
-            else:
-                value = 2
-            state = np.array([value], dtype=np.uint8)
-            self.outHdf5.addState('charge_state', state, t, group='onboard', variableShape=False, maxShape=None)
-            
-            # Charging source available: 2 states (Internal charger, Homebase)
-            state = np.array([msg.internalCharger, msg.homeBase], dtype=np.uint8)
-            self.outHdf5.addState('charge_source', state, t, group='onboard', variableShape=False, maxShape=None)
-            
-            # Collision and cliff detection
+            # Collision and cliff detection (binary)
             state = np.array([msg.bumpLeft, msg.bumpRight,
                               msg.wheeldropCaster, msg.wheeldropLeft, msg.wheeldropRight,
                               msg.cliffLeft, msg.cliffFrontLeft, msg.cliffFrontRight, msg.cliffRight,
                               msg.wall, msg.virtualWall], dtype=np.uint8)
-            self.outHdf5.addState('collision', state, t, group='onboard', variableShape=False, maxShape=None)
+            self.outHdf5.addState('switch', state, t, group='collision', variableShape=False, maxShape=None)
             
             self.countProcessed += 1
             
+        if topic == '/irobot_create/irRange':
+
+            # Collision and cliff detection (range)
+            state = np.array([msg.wallSignal, msg.cliffLeftSignal, msg.cliffFrontLeftSignal,
+                              msg.cliffFrontRightSignal, msg.cliffRightSignal], dtype=np.uint16)
+            self.outHdf5.addState('range', state, t, group='collision', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
+        
+        if topic == '/irobot_create/motorRequests':
+            # WARNING: deprecated message
+            
+            # Motor velocity
+            state = np.array([msg.requestedLeftVelocity, msg.requestedRightVelocity], dtype=np.int16)
+            self.outHdf5.addState('speed', state, t, group='motors', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
+
+        if topic == '/irobot_create/motors':
+            
+            # Motor velocity
+            state = np.array([msg.left, msg.right], dtype=np.int16)
+            self.outHdf5.addState('speed', state, t, group='motors', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
+        
+        if topic == '/irobot_create/odom':
+
+            # Odometry position
+            position = msg.pose.pose.position
+            state = np.array([position.x, position.y, position.z], dtype=np.float64)
+            self.outHdf5.addState('position', state, t, group='odometry', variableShape=False, maxShape=None)
+            
+            # Odometry orientation
+            orientation = msg.pose.pose.orientation
+            state = np.array([orientation.x, orientation.y, orientation.z, orientation.w], dtype=np.float64)
+            self.outHdf5.addState('orientation', state, t, group='odometry', variableShape=False, maxShape=None)
+            
+            # Odometry twist (linear)
+            twist_linear = msg.twist.twist.linear
+            state = np.array([twist_linear.x, twist_linear.y, twist_linear.z], dtype=np.float64)
+            self.outHdf5.addState('twist_linear', state, t, group='odometry', variableShape=False, maxShape=None)
+            
+            # Odometry twist (angular)
+            twist_angular = msg.twist.twist.angular
+            state = np.array([twist_angular.x, twist_angular.y, twist_angular.z], dtype=np.float64)
+            self.outHdf5.addState('twist_angular', state, t, group='odometry', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
+        
         # Check for ignored message topics
         if lastProcessed == self.countProcessed and topic not in self.ignoredTopics:
             logger.info('Ignoring messages from topic: %s' % (topic))
@@ -141,42 +207,6 @@ class StateSaver(object):
         if self.countProcessed > 0 and self.countProcessed % 100 == 0:
             logger.info('Processed %d messages out of %d total messages' % (self.countProcessed, self.countTotal))
         
-
-class SyncStateSaver(StateSaver):
-
-    def __init__(self, outHdf5, topics, queue_size=8, slop=0.5):
-        super(SyncStateSaver, self).__init__(outHdf5)
-        
-        self.topics = topics
-        self.slop = rospy.Duration.from_sec(slop)
-        self.queue_size = queue_size
-        self.queues = [{} for f in fs]
-
-    def add(self, topic, msg, t):
-        
-        msg_queue = self.queues[self.topics.index(topic)]
-        msg_queue[timestamp] = msg
-        while len(msg_queue) > self.queue_size:
-            del msg_queue[min(msg_queue)]
-        for vv in itertools.product(*[list(q.keys()) for q in self.queues]):
-            qt = list(zip(self.queues, vv))
-            if ( ((max(vv) - min(vv)) < self.slop) and
-                (len([1 for q,t in qt if t not in q]) == 0) ):
-                msgs = [q[t] for q,t in qt]
-                
-                avg_timestamp = 0.0
-                for t in vv:
-                    avg_timestamp += t.to_sec()
-                avg_timestamp /= len(vv)
-                    
-                for topic, msg in msgs:
-                    self._process(topic, msg, avg_timestamp)
-                    
-                for q,t in qt:
-                    del q[t]
-
-        self.countTotal += 1
-
 class Hdf5Bag:
 
     def __init__(self, filePath, chunkSize=32, overwrite=False):
@@ -222,24 +252,25 @@ class Hdf5Bag:
                 dataShape = maxShape
             else:
                 dataShape = state.shape
+
             dataset = group.create_dataset('raw',
                                             shape=(self.chunkSize,) + dataShape, maxshape=(None,) + dataShape, 
                                             dtype=state.dtype,
                                             chunks=True,
-                                            compression='gzip', compression_opts=1, shuffle=True)
+                                            compression='gzip', compression_opts=6, shuffle=True)
             self.datasets[dataset.name] = dataset
             self.nbStateSamples[dataset.name] = 0
             
             clockDataset = group.create_dataset('clock',
                                                  shape=(self.chunkSize,), maxshape=(None,), 
-                                                 dtype=np.float32)
+                                                 dtype=np.float64)
             self.datasets[clockDataset.name] = clockDataset
             self.nbStateSamples[clockDataset.name] = 0
             
             if variableShape:
                 shapeDataset = group.create_dataset('shape',
                                                     shape=(self.chunkSize, state.ndim), maxshape=(None, state.ndim), 
-                                                    dtype=np.int32)
+                                                    dtype=np.int64)
                 
                 self.datasets[shapeDataset.name] = shapeDataset
                 self.nbStateSamples[shapeDataset.name] = 0
@@ -254,7 +285,6 @@ class Hdf5Bag:
         # Resize dataset if necessary
         if nbStateSamples >= dataset.shape[0]:
             newShape = np.ceil(float(nbStateSamples + 1) / self.chunkSize) * self.chunkSize
-            # rospy.logdebug('Resizing dataset to size %d' % (newShape))
             dataset.resize(newShape, axis=0)
             clockDataset.resize(newShape, axis=0)
             if variableShape:
@@ -280,7 +310,6 @@ class Hdf5Bag:
     def close(self):
         for name, dataset in self.datasets.iteritems():
             # Truncate dataset to the actual number of state samples
-            # rospy.logdebug('Closing dataset file: recorded %d state samples' % (self.nbStateSamples))
             dataset.resize(self.nbStateSamples[name], axis=0)
         self.h.close()
 
@@ -301,9 +330,14 @@ def main(args=None):
                       help='specify the minimum time')
     parser.add_option("-e", "--stop-time", dest="stopTime", default=-1.0,
                       help='specify the maximum time')
-    parser.add_option("-s", "--sync",
-                      action="store_false", dest="sync", default=False,
-                      help="synchronize messages")
+    parser.add_option("-k", "--chunk-size", dest="chunkSize", default=128,
+                      help='specify the chunk size')
+    parser.add_option("-c", "--use-capture-time",
+                      action="store_true", dest="useCaptureTime", default=False,
+                      help="use capture time rather than recorded time")
+    parser.add_option("-r", "--use-relative-time",
+                      action="store_true", dest="useRelativeTime", default=False,
+                      help="use time relative to the first message")
     (options,args) = parser.parse_args(args=args)
 
     rosBagPath = os.path.abspath(options.input)
@@ -314,36 +348,73 @@ def main(args=None):
     
     startTime = float(options.startTime)
     stopTime = float(options.stopTime)
-    
-    syncTopics = ['/imu/raw',
-                  '/irobot_create/sensorPacket',
-                  '/video/left/raw/compressed',
-                  '/video/right/raw/compressed',
-                  '/audio/left/raw',
-                  '/audio/right/raw']
-    
-    with Hdf5Bag(datasetPath, chunkSize=32, overwrite=True) as outHdf5:
+    with Hdf5Bag(datasetPath, chunkSize=int(options.chunkSize), overwrite=True) as outHdf5:
         
-        baseTime = None
+        referenceTime = None
+        if options.useRelativeTime:
+            with rosbag.Bag(rosBagPath) as inbag:
+                if options.useCaptureTime:
+                    # Use the smallest timestamp amonsgt the first 100 messages of each topic
+                    MAX_COUNT = 100
+                    topics = sorted(set([c.topic for c in inbag._get_connections()]))
+                    timestamps = []
+                    for topic in topics:
+                        minTimestamp = None
+                        count = 0
+                        for _, msg, _ in inbag.read_messages(topics=[topic]):
+                            if hasattr(msg, 'header'):
+                                t = float(msg.header.stamp.to_sec())
+                                if minTimestamp is None or t < minTimestamp:
+                                    minTimestamp = t
+                                count += 1
+                                if count >= MAX_COUNT:
+                                    break
+                            break
+                        if minTimestamp is not None:
+                            timestamps.append(minTimestamp)
+                    referenceTime = np.min(timestamps)
+                    print referenceTime, timestamps
+                else:
+                    # Use the timestamp of the first recorded message
+                    for _, _, timestamp in inbag.read_messages():
+                        referenceTime = float(timestamp.to_sec())
+                        break
+            logger.info('Using reference time: %f' % (referenceTime))
+        
         with rosbag.Bag(rosBagPath) as inbag:
             
-            if options.sync:
-                saver = SyncStateSaver(outHdf5)
-            else:
-                saver = StateSaver(outHdf5)
+            saver = StateSaver(outHdf5)
+            ignoredTopics = ['/rosout', '/rosout_agg', '/tf',
+                             '/video/left/camera_info', '/video/right/camera_info',
+                             '/madgwick/parameter_descriptions',
+                             '/madgwick/parameter_updates']
             
             for topic, msg, timestamp in inbag.read_messages():
                 
-                # Make clock time relative to the first timestamp
-                if baseTime is None:
-                    baseTime = timestamp.to_sec()
-                t = timestamp.to_sec() - baseTime
-                assert t >= 0.0
+                # Skip ignored topics
+                if topic in ignoredTopics:
+                    continue
+                
+                if options.useCaptureTime:
+                    if hasattr(msg, 'header'):
+                        # Use header timestamp
+                        t = float(msg.header.stamp.to_sec())
+                    else:
+                        raise Exception('Topic %s has no header: timestamps will be estimated from rosbag' % (topic))
+                else:
+                    # Use rosbag recorded timestamp
+                    t = float(timestamp.to_sec())
+                
+                if options.useRelativeTime:
+                    # Make clock time relative to the first timestamp
+                    t = t - referenceTime
+                    assert t >= 0.0
                 
                 # Validate if within timerange
                 if t < startTime:
                     continue
-                
+
+                print t                
                 saver.add(topic, msg, t)
                 
                 if stopTime >= 0.0 and t > stopTime:
