@@ -36,7 +36,7 @@ import numpy
 
 import rospy
 from std_msgs.msg import Header, MultiArrayLayout, MultiArrayDimension
-from audio.msg import AudioPacket
+from audio.msg import AudioData
 
 class AudioCapture():
     
@@ -73,7 +73,7 @@ class AudioCapture():
  
         # Create publisher
         output = rospy.get_param('~output', 'audio' + '/' + self.name + '/raw')
-        self.pub = rospy.Publisher(output, AudioPacket, queue_size=1)
+        self.pub = rospy.Publisher(output, AudioData, queue_size=1)
  
     def close(self):
         self.stream.stop_stream()

@@ -35,42 +35,35 @@ import Queue
 import numpy as np
 
 import rospy
-from imu.msg import ImuPacket
+from sensor_msgs.msg import Imu
 
 class RealtimeImuPlotter:
 
     def __init__(self, windowSize=512):
 
         self.windowSize = windowSize
-        self.data = np.zeros((windowSize, 9))
+        self.data = np.zeros((windowSize, 6))
         
         self.q = Queue.Queue(10)
 
         pylab.ion()
         fig = pylab.figure(1)
-        ax1 = fig.add_subplot(311)
+        ax1 = fig.add_subplot(211)
         ax1.grid(True)
         ax1.set_title("Realtime Accelerometer Plot")
         ax1.set_xlabel("Time")
         ax1.set_ylabel("Amplitude")
         ax1.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
 
-        ax2 = fig.add_subplot(312)
+        ax2 = fig.add_subplot(212)
         ax2.grid(True)
         ax2.set_title("Realtime Gyroscope Plot")
         ax2.set_xlabel("Time")
         ax2.set_ylabel("Amplitude")
         ax2.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
 
-        ax3 = fig.add_subplot(313)
-        ax3.grid(True)
-        ax3.set_title("Realtime Magnetometer Plot")
-        ax3.set_xlabel("Time")
-        ax3.set_ylabel("Amplitude")        
-        ax3.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
-
         self.fig = fig
-        self.axes = [ax1, ax2, ax3]
+        self.axes = [ax1, ax2]
         
         xdata=pylab.arange(0,self.windowSize,1)
         ydata=pylab.zeros(self.windowSize)
@@ -81,26 +74,23 @@ class RealtimeImuPlotter:
         self.lines.append(ax2.plot(xdata,ydata,'-r'))
         self.lines.append(ax2.plot(xdata,ydata,'-g'))
         self.lines.append(ax2.plot(xdata,ydata,'-b'))
-        self.lines.append(ax3.plot(xdata,ydata,'-r'))
-        self.lines.append(ax3.plot(xdata,ydata,'-g'))
-        self.lines.append(ax3.plot(xdata,ydata,'-b'))
         
         input = rospy.get_param('~input', '/imu/raw')
-        rospy.Subscriber(input, ImuPacket, RealtimeImuPlotter.callback, self)
+        rospy.Subscriber(input, Imu, RealtimeImuPlotter.callback, self)
 
     def animate(self):
         try:
             data = self.q.get(True, 0.25)
             
             xdata=pylab.arange(0,self,1)
-            for i in range(0, 9):
+            for i in range(0, 6):
                 self.data[0:-1:,i] = self.data[1::,i]
                 self.data[-1,i] = data
                 ydata=pylab.array(self.data[:,i])
              
                 # Update existing line plots
                 self.lines[i][0].set_data(xdata,ydata)
-                self.ax[i/3].axis([xdata.min(),xdata.max(),ydata.min(),ydata.max()])
+                self.ax[i/2].axis([xdata.min(),xdata.max(),ydata.min(),ydata.max()])
             
             self.fig.canvas.draw() 
         except Queue.Empty:
@@ -109,7 +99,8 @@ class RealtimeImuPlotter:
     @staticmethod
     def callback(data, self):
         if not self.q.full():
-            data = np.array([[data.accelX, data.accelY, data.accelZ, data.magX, data.magY, data.magZ, data.gyroX, data.gyroY, data.gyroZ]]);
+            data = np.array([[data.linear_acceleration.x, data.linear_acceleration.y, data.linear_acceleration.z,
+                              data.angular_velocity.x, data.angular_velocity.y, data.angular_velocity.z]]);
             self.q.put(data)
         else:
             rospy.logwarn('Plotting queue is full!')

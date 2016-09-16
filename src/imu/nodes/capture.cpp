@@ -29,12 +29,8 @@
 
 #include <unistd.h>
 #include <iostream>
-
 #include <ros/ros.h>
 #include <ros/console.h>
-#include <std_msgs/UInt8MultiArray.h>
-//#include <imu/ImuPacket.h>
-
 #include <sensor_msgs/Imu.h>
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Vector3.h>

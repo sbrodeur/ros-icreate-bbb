@@ -35,7 +35,7 @@ import Queue
 import numpy as np
 
 import rospy
-from audio.msg import AudioPacket
+from audio.msg import AudioData
    
 class RealtimePlotter:
 
@@ -56,7 +56,7 @@ class RealtimePlotter:
         self.line1=None
         
         input = rospy.get_param('~input', '/audio/default/raw')
-        rospy.Subscriber(input, AudioPacket, RealtimePlotter.callback, self)
+        rospy.Subscriber(input, AudioData, RealtimePlotter.callback, self)
 
     def animate(self):
         try:
