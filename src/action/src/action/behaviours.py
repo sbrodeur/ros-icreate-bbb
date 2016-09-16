@@ -111,7 +111,7 @@ class BehaviourController:
         self.lock = threading.Lock()
         self.isDocking = False
         self.lastMotorAction = None
-        self.state = RobotState()
+        self.state = RobotState(None,None,None)
         
         rospy.wait_for_service('/irobot_create/tank')
         self.tank = rospy.ServiceProxy('/irobot_create/tank', Tank)
