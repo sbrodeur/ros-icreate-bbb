@@ -112,40 +112,47 @@ class CaptureNode {
                    msg.gyroZ = gyro_.getGyroZ();
                    msg.coreTemp = lms303_.getTemperature();
                  */
-                //TODO Check if can this all can be simply initialised (could improve performance)
+                
+                
                 // Positioning message
                 sensor_msgs::Imu msgPos;
 
                 msgPos.header.stamp = ros::Time::now();
-                msgPos.header.frame_id = "/imu/pos";
+                msgPos.header.frame_id = "/imu/data_raw";
 
-                msgPos.orientation          = quaternionFromPitchRoll(lms303_.getPitch(), 
-                                                                   lms303_.getRoll());    
+                msgPos.orientation          = quaternionFromPitchRoll(-(lms303_.getPitch()), 
+                                                                      -(lms303_.getRoll()) );    
                 //msg.orientation_covariance         = ;
+                
                 //Convert to rad/sec
-                msgPos.angular_velocity.x = (gyro_.getGyroX()/180)*PI;
-                msgPos.angular_velocity.y = (gyro_.getGyroY()/180)*PI;
-                msgPos.angular_velocity.z = (gyro_.getGyroZ()/180)*PI;
-                
+                //NOTE inverted x and y axis intentional. lms303 and Gyro 
+                // were not using same axis reference
+                msgPos.angular_velocity.y = -(gyro_.getGyroX()/180)*PI;
+                msgPos.angular_velocity.x =  (gyro_.getGyroY()/180)*PI;
+                msgPos.angular_velocity.z = -(gyro_.getGyroZ()/180)*PI;
                 //msg.angular_velocity_covariance    = ;
-                //Convert from g's to m/s/s
-                msgPos.linear_acceleration.x = G_ACC*lms303_.getAccelX();
-                msgPos.linear_acceleration.y = G_ACC*lms303_.getAccelY();
-                msgPos.linear_acceleration.z = G_ACC*lms303_.getAccelZ();
                 
+                //Convert from g's to m/s/s
+                msgPos.linear_acceleration.x = -G_ACC*lms303_.getAccelX();
+                msgPos.linear_acceleration.y = -G_ACC*lms303_.getAccelY();
+                msgPos.linear_acceleration.z = -G_ACC*lms303_.getAccelZ();
                 //msg.linear_acceleration_covariance = ;
 
                 pubPos_.publish(msgPos);
 
                 // Magnetic orientation message
+                // Convert Gauss to Tesla
                 sensor_msgs::MagneticField msgMag;
 
                 msgMag.header.stamp = ros::Time::now();
                 msgMag.header.frame_id = "/imu/mag";
 
-                msgMag.magnetic_field.x = lms303_.getMagX();
-                msgMag.magnetic_field.y = lms303_.getMagY();
-                msgMag.magnetic_field.z = lms303_.getMagZ();
+                float wXBias =  0.28;
+                float wYBias = -0.06;
+                // Y -> North X -> East, inverted values for IMU consolidator
+                msgMag.magnetic_field.x = -(lms303_.getMagX() + wXBias)/10000;
+                msgMag.magnetic_field.y = -(lms303_.getMagY() + wYBias)/10000;
+                msgMag.magnetic_field.z =   lms303_.getMagZ()/10000;
 
                 pubMag_.publish(msgMag);
 
