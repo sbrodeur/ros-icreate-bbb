@@ -1,0 +1,13 @@
+<launch>
+
+<node name="syncer" pkg="camera" type="syncImage.py" output="screen" >
+	<param name="inputNamespace" value="/video" />        
+	<param name="outputNamespace" value="/video/sync" />
+</node>
+
+<node name="republish_left" type="republish" pkg="image_transport" output="screen" args="compressed in:=/video/sync/left raw out:=/video/sync/left/image_raw" />
+
+<node name="republish_right" type="republish" pkg="image_transport" output="screen" args="compressed in:=/video/sync/right raw out:=/video/sync/right/image_raw" />
+
+</launch>
+
