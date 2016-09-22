@@ -92,7 +92,7 @@ class AudioCapture():
                 chanData.append(data[i::self.channels])
             
     		# Publish channel data
-    		msg = AudioPacket()
+    		msg = AudioData()
             msg.header = Header()
             msg.header.stamp = rospy.Time.now()
             msg.fs = self.rate
