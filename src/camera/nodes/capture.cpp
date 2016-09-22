@@ -58,6 +58,7 @@ class CaptureNode {
         int width_;
         int height_;
         int framerate_;
+        bool invert_image_;
         std::string output_;
         std::string video_device_;
         
@@ -73,8 +74,7 @@ class CaptureNode {
                 pubCamInfo = node_.advertise<sensor_msgs::CameraInfo>("/video/" + camera_name_ + "/camera_info",1);
                  
                 node_.param("camera_info_url", camera_info_url_, std::string(""));
-                cinfo_.reset(
-                        new camera_info_manager::CameraInfoManager(node_, camera_name_,
+                cinfo_.reset( new  camera_info_manager::CameraInfoManager(node_, camera_name_,
                             camera_info_url_));
 
                 node_.param("video_device", video_device_, std::string("/dev/video0"));
@@ -98,15 +98,12 @@ class CaptureNode {
             msg.data.resize(frame.size());
             memcpy(&(msg.data[0]), &frame[0], frame.size());
 
+
             pub_.publish(msg);
             
             
-            sensor_msgs::CameraInfo wCamInfo;
-
+            sensor_msgs::CameraInfo wCamInfo = cinfo_->getCameraInfo();
             wCamInfo.header.stamp = ros::Time::now();
-            wCamInfo.height = height_;
-            wCamInfo.width  = width_;
-
             pubCamInfo.publish(wCamInfo);
 
             return true;
