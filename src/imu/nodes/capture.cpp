@@ -120,13 +120,18 @@ class CaptureNode {
                 msgPos.header.stamp = ros::Time::now();
                 msgPos.header.frame_id = "/imu/data_raw";
 
-                msgPos.orientation          = quaternionFromPitchRoll(-(lms303_.getPitch()), 
-                                                                      -(lms303_.getRoll()) );    
+                msgPos.orientation.x = 0;
+                msgPos.orientation.y = 0;
+                msgPos.orientation.z = 0;
+                msgPos.orientation.w = 0;
+                //msgPos.orientation          = quaternionFromPitchRoll(-(lms303_.getPitch()), 
+                //                                                      -(lms303_.getRoll()) );    
                 //msg.orientation_covariance         = ;
                 
                 //Convert to rad/sec
                 //NOTE inverted x and y axis intentional. lms303 and Gyro 
                 // were not using same axis reference
+                
                 msgPos.angular_velocity.y = -(gyro_.getGyroX()/180)*PI;
                 msgPos.angular_velocity.x =  (gyro_.getGyroY()/180)*PI;
                 msgPos.angular_velocity.z = -(gyro_.getGyroZ()/180)*PI;
@@ -152,7 +157,7 @@ class CaptureNode {
                 // Y -> North X -> East, inverted values for IMU consolidator
                 msgMag.magnetic_field.x = -(lms303_.getMagX() + wXBias)/10000;
                 msgMag.magnetic_field.y = -(lms303_.getMagY() + wYBias)/10000;
-                msgMag.magnetic_field.z =   lms303_.getMagZ()/10000;
+                msgMag.magnetic_field.z = -lms303_.getMagZ()/10000;
 
                 pubMag_.publish(msgMag);
 
