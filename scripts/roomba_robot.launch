@@ -16,6 +16,7 @@
     <param name="framerate" value="15" />
     <param name="camera_name" value="left"/>
     <param name="output" value="/video/left/compressed" />
+    <param name="camera_info_url" value="package://camera/calibration/left_calibration.yaml" />
 </node>
 
 <node name="video2" pkg="camera" type="capture" output="screen">
@@ -25,6 +26,7 @@
     <param name="framerate" value="15" />
     <param name="camera_name" value="right"/>
     <param name="output" value="/video/right/compressed" />
+    <param name="camera_info_url" value="package://camera/calibration/right_calibration.yaml" />
 </node>
 
 <node name="mic1" pkg="audio" type="capture.py" output="screen">
