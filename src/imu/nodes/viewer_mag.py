@@ -29,7 +29,6 @@
 # OF SUCH DAMAGE.
 
 import sys
-import pylab
 import numpy
 import Queue
 import numpy as np
@@ -41,7 +40,7 @@ from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 
 import rospy
-from sensor_msgs.msg import Imu
+from sensor_msgs.msg import MagneticField
 
 # Adapted from: http://stackoverflow.com/questions/22867620/putting-arrowheads-on-vectors-in-matplotlibs-3d-plot
 class Arrow3D(FancyArrowPatch):
@@ -58,35 +57,17 @@ class Arrow3D(FancyArrowPatch):
         self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
         FancyArrowPatch.draw(self, renderer)
         
-# Adapted from: https://afni.nimh.nih.gov/pub/dist/src/pkundu/meica.libs/nibabel/quaternions.py
-def quat2mat(q):
-    w, x, y, z = q
-    Nq = w*w + x*x + y*y + z*z
-    if Nq < np.finfo(np.float64).eps:
-        return np.eye(3)
-    s = 2.0/Nq
-    X = x*s
-    Y = y*s
-    Z = z*s
-    wX = w*X; wY = w*Y; wZ = w*Z
-    xX = x*X; xY = x*Y; xZ = x*Z
-    yY = y*Y; yZ = y*Z; zZ = z*Z
-    return np.array(
-           [[ 1.0-(yY+zZ), xY-wZ, xZ+wY ],
-            [ xY+wZ, 1.0-(xX+zZ), yZ-wX ],
-            [ xZ-wY, yZ+wX, 1.0-(xX+yY) ]])
-        
-class RealtimeOrientationPlotter:
+class RealtimeMagneticFieldPlotter:
 
     def __init__(self):
        
         self.q = Queue.Queue(1)
 
-        pylab.ion()
-        fig = pylab.figure(facecolor='white')
+        plt.ion()
+        fig = plt.figure(facecolor='white')
         ax = fig.gca(projection='3d')
         ax.grid(True)
-        ax.set_title("Realtime Orientation Plot")
+        ax.set_title("Realtime Magnetic Field Plot")
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
@@ -94,43 +75,41 @@ class RealtimeOrientationPlotter:
         
         self.fig = fig
         self.ax = ax
-        self.arrows = []
+        self.arrow = None
+        self.text = None
         
-        input = rospy.get_param('~input', '/imu/data')
-        rospy.Subscriber(input, Imu, RealtimeOrientationPlotter.callback, self)
+        input = rospy.get_param('~input', '/imu/mag')
+        rospy.Subscriber(input, MagneticField, RealtimeMagneticFieldPlotter.callback, self)
 
     def animate(self):
         try:
-            quaternion = self.q.get(True, 0.25)
+            vector = self.q.get(True, 0.25)
+            x,y,z = vector
             
-            # Convert from quaternion (w, x, y, z) to rotation matrix
-            R = quat2mat(quaternion)
-            
-            # Apply the rotation to the axis vectors (pointing in Y-axis)
-            directions = np.eye(3) # x, y, z as column vectors
-            vectors = np.dot(R, directions)
-            assert np.allclose(np.linalg.norm(vectors, 2, axis=0), np.ones((3,)), atol=1e-6)
-            
-            if len(self.arrows) == 0:
+            if self.arrow is None:
                 # Create line plot
-                labels = ['x', 'y', 'z']
-                colors = ['r', 'g', 'b']
-                for i in range(3):
-                    x,y,z = vectors[:,i]
-                    arrow = Arrow3D([0.0, x], [0.0, y], [0.0, z], mutation_scale=20, 
-                                    lw=3, arrowstyle="-|>", color=colors[i], label=labels[i])
-                    self.arrows.append(arrow)
-                    self.ax.add_artist(arrow)
-                
-                proxies = [pylab.Rectangle((0, 0), 1, 1, fc=c) for c in colors]
-                legend = self.ax.legend(proxies, labels, loc='upper right')
+                arrow = Arrow3D([0.0, x], [0.0, y], [0.0, z], mutation_scale=20, 
+                                lw=3, arrowstyle="-|>", color='r')
+                self.arrow = arrow
+                self.ax.add_artist(arrow)
             else:
                 # Update existing line plot
-                for i in range(3):
-                    x,y,z = vectors[:,i]
-                    self.arrows[i].set_data([0.0, x], [0.0, y], [0.0, z])
+                self.arrow.set_data([0.0, x], [0.0, y], [0.0, z])
+                
+            limits = [-1.0e-1, 1.0e-1]
+            norm = np.linalg.norm(vector, 2) * 1e6
+            if self.text is None:
+                text = self.ax.text(0, 0, limits[1]/5.0, "%4.1f uT" % (norm),
+                                    horizontalalignment='center',
+                                    verticalalignment='top')
+                self.text = text
+            else:
+                self.text.set_text("%4.1f uT" % (norm))
+                
             
-            self.ax.axis([-1.0, 1.0, -1.0, 1.0])
+            self.ax.set_xlim3d(limits)
+            self.ax.set_ylim3d(limits)
+            self.ax.set_zlim3d(limits)
             self.fig.canvas.draw()
         except Queue.Empty:
             pass
@@ -138,9 +117,9 @@ class RealtimeOrientationPlotter:
     @staticmethod
     def callback(msg, self):
         if not self.q.full():
-            # Orientation (as quaternion [w, x, y, z])
-            quaternion = np.array([msg.orientation.w, msg.orientation.x, msg.orientation.y, msg.orientation.z], dtype=np.float64)
-            self.q.put(quaternion)
+            # Magnetometer (as 3D vector [x, y, z])
+            vector = np.array([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z], dtype=np.float64)
+            self.q.put(vector)
             
         else:
             # Discard the message
@@ -150,9 +129,9 @@ if __name__ == '__main__':
     
     try:
         rospy.init_node('viewer')
-        plt = RealtimeOrientationPlotter()
+        viewer = RealtimeMagneticFieldPlotter()
          
         while not rospy.is_shutdown():
-            plt.animate()
+            viewer.animate()
  
     except rospy.ROSInterruptException: pass
