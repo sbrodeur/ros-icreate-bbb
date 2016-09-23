@@ -67,7 +67,7 @@ class RobotState:
         #         quaternion.y = 0.0
         #         quaternion.z = sin(self.th/2)
         #         quaternion.w = cos(self.th/2)
-        th = 2.0 * np.arctan2(self.odom.pose.quaternion.z, self.odom.pose.quaternion.w)
+        th = 2.0 * np.arctan2(self.odom.pose.pose.orientation.z, self.odom.pose.pose.orientation.w)
         return th
         
     def _updateDistance(self):
@@ -111,7 +111,7 @@ class BehaviourController:
         self.lock = threading.Lock()
         self.isDocking = False
         self.lastMotorAction = None
-        self.state = RobotState(None,None,None)
+        self.state = RobotState(Contact(),BatteryState(),Odometry())
         
         rospy.wait_for_service('/irobot_create/tank')
         self.tank = rospy.ServiceProxy('/irobot_create/tank', Tank)
