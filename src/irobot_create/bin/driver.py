@@ -261,7 +261,8 @@ class CreateDriver:
 
     def leds(self,req):
         self.create.leds(req.advance,req.play,req.color,req.intensity)
-        return LedsResponse(True)
+        #return LedsResponse(True)
+        return True
 
     def tank(self,req):
         if (req.clear):
@@ -348,8 +349,6 @@ class CreateDriver:
             4 : 2, #Waiting -> Discharging
             5 : 0, #Charging fault condition -> Unknown
         }.get(irobot_status, 0)
-
-
 
 
 if __name__ == '__main__':
