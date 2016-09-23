@@ -39,6 +39,7 @@ from fcntl import ioctl
 import rospy
 
 from action.behaviours import BehaviourController, Behaviour, MotorAction
+from irobot_create.srv import * 
 
 class Joystick:
     
@@ -203,14 +204,20 @@ class RemoteControl(Behaviour):
         self.joystick = Joystick(dev)
         self.enabled = True
         self.mode = None
+        self.recording = False
+        rospy.wait_for_service('/irobot_create/leds')
+        self.recordBag = rospy.ServiceProxy('/irobot_create/record', Record)
+        self.ledControl = rospy.ServiceProxy('/irobot_create/leds', Leds)
         Behaviour.__init__(self, priority, controller)
     
     def executeControl(self, state):
         
         # Update joystick states
-        lastEnableActivated = self.joystick.button_states['base4'] == 1
+        #lastEnableActivated = self.joystick.button_states['base4'] == 1
+        lastEnableActivated = True 
         self.joystick.update()
-        enableActivated = self.joystick.button_states['base4'] == 1
+        #enableActivated = self.joystick.button_states['base4'] == 1
+        enableActivated = True
         
         if self.enabled and enableActivated and not lastEnableActivated:
             # If joystick is not activated
@@ -227,7 +234,25 @@ class RemoteControl(Behaviour):
         x,y = self.joystick.getState()
         left = 0.0
         right = 0.0
-        if x != 0.0 or y != 0.0:
+        
+        recordActivation = self.joystick.button_states['b'] and self.joystick.button_states['y']
+        if recordActivation == 1 and self.recording == False:
+            rospy.logwarn("Will start Recording!")
+            self.recording = True
+            try :
+                #respBag = self.recordBag(10)
+                resp = self.ledControl(True,False, 255, 255)
+                rospy.sleep(1)
+                resp = self.ledControl(True,False , 0,0)
+                rospy.sleep(1)
+                resp = self.ledControl(True,False , 255,255)
+                rospy.sleep(1)
+                resp = self.ledControl(True,False , 0,0)
+            except rospy.ServiceException, e:
+                rospy.logwarn( "Service call failed: %s", e)
+
+        #adding minimum movement requirement
+        if abs(x) > 0.18 or abs(y) > 0.18:
             
             # Conversion algorithm adapted from:
             # http://www.goodrobot.com/en/2009/09/tank-drive-via-joystick-control/
