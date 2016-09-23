@@ -154,10 +154,14 @@ class CaptureNode {
 
                 float wXBias =  0.28;
                 float wYBias = -0.06;
+                float wXScale = 1; //5;
+                float wYScale = 1; //5;
+                float wZScale = 1; //2;
+                
                 // Y -> North X -> East, inverted values for IMU consolidator
-                msgMag.magnetic_field.x = -(lms303_.getMagX() + wXBias)/10000;
-                msgMag.magnetic_field.y = -(lms303_.getMagY() + wYBias)/10000;
-                msgMag.magnetic_field.z = -lms303_.getMagZ()/10000;
+                msgMag.magnetic_field.x = wXScale*(lms303_.getMagX() + wXBias)/10000.0;
+                msgMag.magnetic_field.y = wYScale*(lms303_.getMagY() + wYBias)/10000.0;
+                msgMag.magnetic_field.z = wZScale* lms303_.getMagZ()/10000.0;
 
                 pubMag_.publish(msgMag);
 
