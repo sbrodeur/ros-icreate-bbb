@@ -38,70 +38,80 @@ import atexit
 
 logger = logging.getLogger(__name__)
 
+
 class RosManager:
+    """
+    Class to manage a roscore instance, and allow to play 
+    rosbag files and run roslaunch scripts.
+    """
     
-    ROS_HOSTNAME='localhost'
-    ROS_MASTER_URI='http://localhost:1234/'
-    ROS_PORT = 1234
-    
-    def __init__(self, rosbagPath=None, rate=1):
-        self.rate = rate
+    def __init__(self, port=1234, version='kinetic'):
+        self.port = port
+        self.version = version
         self._terminate()
         
         # Start new roscore instance
-        logger.info('Starting roscore subprocess...')
-        env = os.environ
-        env['ROS_HOSTNAME'] = RosManager.ROS_HOSTNAME
-        env['ROS_MASTER_URI'] = self.ROS_MASTER_URI
-        env['CMAKE_PREFIX_PATH'] = '/opt/ros/indigo'
-        proc_roscore = subprocess.Popen(['sh /opt/ros/indigo/setup.sh & roscore -p %d' % (self.ROS_PORT)],
+        logger.debug('Starting roscore subprocess...')
+        proc_roscore = subprocess.Popen(['sh /opt/ros/%s/setup.sh & roscore -p %d' % (self.version, self.port)],
                                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                             shell=True, env=env)
+                                             shell=True, env=self._getEnv())
         
         time.sleep(1.0)
         if proc_roscore.poll() is not None:
             lines = proc_roscore.communicate()[1]
             raise Exception('Failed to start the roscore subprocess: \n%s' % (lines))
-        logger.info('roscore successfully launched!')
+        logger.debug('roscore successfully launched!')
         atexit.register(self.close)
         
-        # Start new rosbag instance, if a file was provided
-        self.rosbagPath = None
-        if rosbagPath is not None:
-            rosbagPath = os.path.abspath(rosbagPath)
-            self.rosbagPath = rosbagPath
-            logger.info('Starting rosbag subprocess using file %s ...' % (rosbagPath))
-            proc_rosbag = subprocess.Popen(['rosbag play -q -r %d %s' % (int(rate), rosbagPath)], 
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                                shell=True, env=env)
-            
-            time.sleep(1.0)
-            if proc_rosbag.poll() is not None:
-                lines = proc_rosbag.communicate()[1]
-                raise Exception('Failed to start the rosbag subprocess: \n%s' % (lines))
-            logger.info('rosbag successfully launched!')
+        # Test connection with master
+        master = rosgraph.Master('/rosmanager')
+        try:
+            if not master.is_online():
+                raise ROSTopicIOException("Unable to communicate with master!")
+        except socket.error:
+            raise ROSTopicIOException("Unable to communicate with master!")
         
-        rospy.init_node('test', anonymous=True, log_level=rospy.DEBUG)
-        logger.info('rospy initialization done!')
-    
-    def launch(self, filepath):
-        
+    def _getEnv(self):
         env = os.environ
-        env['ROS_HOSTNAME'] = RosManager.ROS_HOSTNAME
-        env['ROS_MASTER_URI'] = self.ROS_MASTER_URI
-        env['CMAKE_PREFIX_PATH'] = '/opt/ros/indigo'
+        if 'LD_LIBRARY_PATH' in env:
+            env['LD_LIBRARY_PATH'] =  '/opt/ros/%s/lib:' % (self.version) + env['LD_LIBRARY_PATH']
+        else:
+            env['LD_LIBRARY_PATH'] =  '/opt/ros/%s/lib' % (self.version)
+        env['ROS_HOSTNAME'] = 'localhost'
+        env['ROS_MASTER_URI'] = 'http://localhost:%d/' % (self.port)
+        env['CMAKE_PREFIX_PATH'] = '/opt/ros/%s' % (self.version)
+        return env
         
-        filepath = os.path.abspath(filepath)
-        logger.info('Starting roslauch subprocess for file %s ...' % (filepath))
-        proc_roslaunch = subprocess.Popen(['sh ..//setup.sh & roslaunch %s' % (filepath)], 
+    def launchBagPlay(self, rosbagPath, rate=1, loop=False):
+        
+        # Start new rosbag instance, if a file was provided
+        rosbagPath = os.path.abspath(rosbagPath)
+        logger.debug('Starting rosbag subprocess using file %s ...' % (rosbagPath))
+        args = ''
+        if loop:
+            args += '--loop '
+        proc_rosbag = subprocess.Popen(['sh /opt/ros/%s/setup.sh & rosbag play -q -r %d %s %s' % (self.version, int(rate), args, rosbagPath)], 
                                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
-                                            shell=True, env=env)
+                                            shell=True, env=self._getEnv())
+        
+        time.sleep(1.0)
+        if proc_rosbag.poll() is not None:
+            lines = proc_rosbag.communicate()[1]
+            raise Exception('Failed to start the rosbag subprocess: \n%s' % (lines))
+        logger.debug('rosbag successfully launched!')
+    
+    def launchScript(self, scriptPath):
+        scriptPath = os.path.abspath(scriptPath)
+        logger.debug('Starting roslauch subprocess for file %s ...' % (scriptPath))
+        proc_roslaunch = subprocess.Popen(['sh /opt/ros/%s/setup.sh & roslaunch %s' % (scriptPath)], 
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                            shell=True, env=self._getEnv())
         
         time.sleep(1.0)
         if proc_roslaunch.poll() is not None:
             lines = proc_roslaunch.communicate()[1]
             raise Exception('Failed to start the roslaunch subprocess: \n%s' % (lines))
-        logger.info('roslaunch successfully launched!')
+        logger.debug('roslaunch successfully launched!')
         
     def _terminate(self):
         
@@ -114,12 +124,12 @@ class RosManager:
             if (line.find("roscore") > -1 or line.find("rosmaster") >-1 or 
                 line.find("rosout") > -1 or line.find("rosbag") > -1):
                 pid = line.lstrip(" \t\n").split(' ')[0]
-                logger.info('Found a roscore/rosmaster/rosout/rosbag instance: killing pid %s' % (pid))
+                logger.debug('Found a roscore/rosmaster/rosout/rosbag instance: killing pid %s' % (pid))
                 p = subprocess.Popen(['kill','-9', pid]);
                 p.wait()
         
     def close(self):
-        logger.info('Terminating roscore instance.')
+        logger.debug('Terminating roscore instance.')
         self._terminate()
 
 
