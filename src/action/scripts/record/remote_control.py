@@ -34,12 +34,15 @@ import sys
 import random
 import numpy as np
 import time
+import subprocess
 from fcntl import ioctl
 
 import rospy
+import rospkg
 
 from action.behaviours import BehaviourController, Behaviour, MotorAction
 from irobot_create.srv import * 
+
 
 class Joystick:
     
@@ -209,7 +212,12 @@ class RemoteControl(Behaviour):
         self.recordBag = rospy.ServiceProxy('/irobot_create/record', Record)
         self.ledControl = rospy.ServiceProxy('/irobot_create/leds', Leds)
         Behaviour.__init__(self, priority, controller)
-    
+        self.rospack = rospkg.RosPack()
+        self.durationOfRecording = rospy.Duration.from_sec(600.1)
+        self.timeStartRecord = rospy.Time.now()
+        self.recordingNumber = 0
+        self.rosRecordingProcess = None 
+
     def executeControl(self, state):
         
         # Update joystick states
@@ -238,22 +246,71 @@ class RemoteControl(Behaviour):
         recordActivation = self.joystick.button_states['b'] and self.joystick.button_states['y']
         if recordActivation == 1 and self.recording == False:
             rospy.logwarn("Will start Recording!")
+            self.timeStartRecord = rospy.Time.now()
             self.recording = True
+            startLnhRecording = 'rosbag record -a --duration=10m -O /root/work/rosbags/session_' + str(self.recordingNumber) + '.bag'
+
+            # Launch command in a subprocess
+            self.rosRecordingProcess = subprocess.Popen(startLnhRecording, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+            self.recordingNumber += 1
+            #Blink led once
             try :
                 #respBag = self.recordBag(10)
-                resp = self.ledControl(True,False, 255, 255)
+                resp = self.ledControl(False, True, 255, 255)
                 rospy.sleep(1)
-                resp = self.ledControl(True,False , 0,0)
+                resp = self.ledControl(False, True , 0,0)
                 rospy.sleep(1)
-                resp = self.ledControl(True,False , 255,255)
-                rospy.sleep(1)
-                resp = self.ledControl(True,False , 0,0)
             except rospy.ServiceException, e:
                 rospy.logwarn( "Service call failed: %s", e)
+           
+
+        #interrupt recording
+        recordCancelation = self.joystick.button_states['x'] and self.joystick.button_states['a']
+        if recordCancelation == 1 and self.recording == True:
+            #Must SIGINT child process ourselves, since rosbag record creates a few
+            ps_command = subprocess.Popen("ps -o pid --ppid %d --noheaders" % self.rosRecordingProcess.pid, shell=True, stdout=subprocess.PIPE)
+            ps_output = ps_command.stdout.read()
+            retcode = ps_command.wait()
+            assert retcode == 0, "ps command returned %d" % retcode
+            
+            ps_command = subprocess.Popen("ps -o pid --ppid %d --noheaders" % int(ps_output), shell=True, stdout=subprocess.PIPE)
+            ps_output = ps_command.stdout.read()
+            retcode = ps_command.wait()
+            assert retcode == 0, "ps command returned %d" % retcode
+            
+            for pid_str in ps_output.split("\n")[:-1]:
+                os.kill(int(pid_str), subprocess.signal.SIGINT)
+            #self.rosRecordingProcess.send_signal(subprocess.signal.SIGINT)
+            self.rosRecordingProcess.terminate()
+            self.recording = False
+            rospy.logwarn("Stopped recording rosbag")        
+            #Blink led twice
+            try :
+                resp = self.ledControl(False, True, 255, 255)
+                rospy.sleep(1)
+                resp = self.ledControl(False, True, 0, 0)
+                rospy.sleep(1)
+                resp = self.ledControl(False, True, 255, 255)
+                rospy.sleep(1)
+                resp = self.ledControl(False, True, 0, 0)
+            except rospy.ServiceException, e:
+                rospy.logwarn( "Service call failed: %s", e)
+        
+        #stop lock on recording after 10min
+        if (rospy.Time.now() - self.timeStartRecord ) > self.durationOfRecording:
+            if self.recording == True:
+                self.recording = False
 
         #adding minimum movement requirement
-        if abs(x) > 0.18 or abs(y) > 0.18:
-            
+        if abs(x) > 0.2 or abs(y) > 0.2:
+           
+            # Avoid small controller deviations, that make it hard to go in a straight line
+            if abs(x) < 0.2:
+                x = 0
+            if abs(y) < 0.2:
+                y = 0
+
             # Conversion algorithm adapted from:
             # http://www.goodrobot.com/en/2009/09/tank-drive-via-joystick-control/
             angle = np.arccos(np.abs(x)/np.sqrt(x**2 + y**2)) * 180.0 / np.pi
