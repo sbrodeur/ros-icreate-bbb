@@ -91,34 +91,12 @@ class CaptureNode {
             while (node_.ok()) {
                 lms303_.readFullSensorState();
                 gyro_.readFullSensorState();
-
-                /*
-                   imu::ImuPacket msg;
-
-                   msg.header.stamp = ros::Time::now();
-                   msg.header.frame_id = "/imu";
-
-                   msg.fs = (int) rate_;
-                   msg.accelX = lms303_.getAccelX();
-                   msg.accelY = lms303_.getAccelY();
-                   msg.accelZ = lms303_.getAccelZ();
-                   msg.pitch = lms303_.getPitch();
-                   msg.roll = lms303_.getRoll();
-                   msg.magX = lms303_.getMagX();
-                   msg.magY = lms303_.getMagY();
-                   msg.magZ = lms303_.getMagZ();
-                   msg.gyroX = gyro_.getGyroX();
-                   msg.gyroY = gyro_.getGyroY();
-                   msg.gyroZ = gyro_.getGyroZ();
-                   msg.coreTemp = lms303_.getTemperature();
-                 */
-                
                 
                 // Positioning message
                 sensor_msgs::Imu msgPos;
 
                 msgPos.header.stamp = ros::Time::now();
-                msgPos.header.frame_id = "/imu/data_raw";
+                msgPos.header.frame_id = "imu_link";
 
                 msgPos.orientation.x = 0;
                 msgPos.orientation.y = 0;
@@ -150,7 +128,7 @@ class CaptureNode {
                 sensor_msgs::MagneticField msgMag;
 
                 msgMag.header.stamp = ros::Time::now();
-                msgMag.header.frame_id = "/imu/mag";
+                msgMag.header.frame_id = "imu_link";
 
                 float wXBias =  0.28;
                 float wYBias = -0.06;
@@ -170,7 +148,7 @@ class CaptureNode {
                 sensor_msgs::Temperature msgTemp;
 
                 msgTemp.header.stamp = ros::Time::now();
-                msgTemp.header.frame_id = "/imu/temp";
+                msgTemp.header.frame_id = "imu_link";
 
                 msgTemp.temperature = lms303_.getTemperature();
                 
