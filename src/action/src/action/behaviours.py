@@ -30,6 +30,7 @@
 
 import sys
 import random
+import math
 import numpy as np
 import threading
 import time
@@ -215,7 +216,7 @@ class Spiral(Behaviour):
         Behaviour.__init__(self, priority, controller)
     
     def executeSpin(self, state):
-        theta = 2.0 * np.pi * (state.getOdomAngle() - self.angleRef) / 360.0
+        theta = state.getOdomAngle() - self.angleRef
         r = np.max(((Spiral.RADIUS / (2.0 * np.pi)) * theta, Spiral.RADIUS / (2.0 * np.pi)))
         k = (1.0 + (2 * r)/Spiral.WHEELBASE_DISTANCE) / ((2 * r)/Spiral.WHEELBASE_DISTANCE - 1.0)
         leftSpeed = 2.0 * Spiral.SPEED / (k + 1)
@@ -261,7 +262,7 @@ class Wander(Behaviour):
         action = MotorAction(Wander.SPEED,Wander.SPEED)
         now = time.time()
         if Wander.ROTATION_PERIOD > 0.0 and now - self.lastRotation > Wander.ROTATION_PERIOD:
-            self.angle = random.randrange(-45, 45)
+            self.angle = random.uniform((-math.pi/2.0), (math.pi/2.0))
             self.angleRef = state.getOdomAngle()
             self.mode = 'rotate'
             self.lastRotation = now
@@ -362,32 +363,32 @@ class AvoidObstacle(Behaviour):
         # Cliff detection
         elif self.cliffEnabled and (state.contact.cliffLeft or state.contact.cliffFrontLeft):
             # Turn right
-            self.angle = random.randrange(25, 75)
+            self.angle = random.uniform(math.pi*0.44, math.pi*1.31)
             self.angleRef = state.getOdomAngle()
             self.mode = 'rotate'
         elif self.cliffEnabled and (state.contact.cliffFrontRight or state.contact.cliffRight):
             # Turn left
-            self.angle = -random.randrange(25, 75)
+            self.angle = -random.uniform(math.pi*0.44, math.pi*1.31)
             self.angleRef = state.getOdomAngle()
             self.mode = 'rotate'
         # Bumper detection
         elif self.bumperEnabled and state.contact.bumpLeft:
             # Turn right
-            self.angle = random.randrange(25, 75)
+            self.angle = random.uniform(math.pi*0.44, math.pi*1.31)
             self.angleRef = state.getOdomAngle()
             self.distance = -AvoidObstacle.DISTANCE
             self.distanceRef = state.getOdomDistance()
             self.mode = 'avoid'
         elif self.bumperEnabled and state.contact.bumpRight:
             # Turn left
-            self.angle = -random.randrange(25, 75)
+            self.angle = -random.uniform(math.pi*0.44, math.pi*1.31)
             self.angleRef = state.getOdomAngle()
             self.distance = -AvoidObstacle.DISTANCE
             self.distanceRef = state.getOdomDistance()
             self.mode = 'avoid'
         elif self.bumperEnabled and state.contact.virtualWall:
             # Turn either left or right
-            angle = random.randrange(25, 75)
+            angle = random.uniform(math.pi*0.44, math.pi*1.31)
             if random.random() > 0.5:
                 # Turn right
                 self.angle = angle
