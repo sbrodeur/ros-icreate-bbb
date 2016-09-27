@@ -248,7 +248,7 @@ class RemoteControl(Behaviour):
             rospy.logwarn("Will start Recording!")
             self.timeStartRecord = rospy.Time.now()
             self.recording = True
-            startLnhRecording = 'rosbag record -a --duration=10m -O /root/work/rosbags/session_' + str(self.recordingNumber) + '.bag'
+            startLnhRecording = 'rosbag record -a --duration=10m -O /root/work/rosbags/session_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.bag'
 
             # Launch command in a subprocess
             self.rosRecordingProcess = subprocess.Popen(startLnhRecording, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
