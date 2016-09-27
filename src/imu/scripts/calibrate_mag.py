@@ -71,6 +71,44 @@ def rotationMatrix(a, b):
     R = np.identity(3) + vx + np.square(vx)*(1.0/(1.0 + c))
     return R
 
+def PCA(x):
+    # Find the eigenvectors of the covariance matrix
+    m = np.mean(x, axis=0)
+    x = x - m
+    [_, V] = np.linalg.eig(np.cov(x.T))
+    return V
+
+def calculateBankAngleZ(data):
+    # Find the normal vector to the data that points upward (positive z)
+    _, n = fitHyperplane(data)
+    if n[2] < 0:
+        n = -n
+    
+    # Find the rotation matrix between the reference and data vectors
+    vref = np.array([0.0, 0.0, 1.0])
+    vdata = n
+    R = rotationMatrix(vdata, vref)
+    return R
+
+def calculateSoftIronXY(data):
+    # NOTE: ignore z axis
+    
+    # Compute rotation matrix for the ellipse
+    V = PCA(data[:,:2])
+    Rxy = np.identity(3)
+    Rxy[:2,:2] = V
+    
+    # Apply transformation
+    newdata = np.dot(Rxy, data.T).T
+    
+    # Compute scaling factors for x and y axis
+    xscale = np.max(newdata[:,0], axis=0) - np.min(newdata[:,0], axis=0)
+    yscale = np.max(newdata[:,1], axis=0) - np.min(newdata[:,1], axis=0)
+    scale = np.mean([xscale, yscale])
+    factorx = scale / xscale
+    factory = scale / yscale
+    
+    return Rxy, factorx, factory
 
 def main(args=None):
 
@@ -88,18 +126,19 @@ def main(args=None):
     # Load data from the cvs file
     data = np.loadtxt(open(cvsPath,"r"), delimiter=",")
     
-    # Find the normal vector to the data that points upward (positive z)
-    _, n = fitHyperplane(data)
-    if n[2] < 0:
-        n = -n
+    Rz = calculateBankAngleZ(data)
+    Rxy, factorx, factory = calculateSoftIronXY(data)
     
-    # Find the rotation matrix between the reference and data vectors
-    vref = np.array([0.0, 0.0, 1.0])
-    vdata = n
-    R = rotationMatrix(vdata, vref)
+    # Convert data (z axis)
+    newdata = np.dot(Rz, data.T).T
     
-    # Convert data
-    newdata = np.dot(R, data.T).T
+    # Convert data (x-y plane)
+    # Apply the rotation, rescale, then apply the inverse rotation (transposed of the rotation matrix).
+    newdata = np.dot(Rxy, newdata.T).T
+    newdata[:,0] *= factorx
+    newdata[:,1] *= factory
+    newdata = np.dot(Rxy.T, newdata.T).T
+    factors = np.array([factorx, factory])
     
     # Calculate ranges
     xmin, ymin, zmin = np.min(newdata, axis=0)
@@ -107,8 +146,11 @@ def main(args=None):
     logger.info('X scale: %f, %f (range of %f)' % (xmin, xmax, xmax - xmin))
     logger.info('Y scale: %f, %f (range of %f)' % (ymin, ymax, ymax - ymin))
     logger.info('Z scale: %f, %f (range of %f)' % (zmin, zmax, zmax - zmin))
+    limits = [0.9*min(xmin, ymin), 1.1*max(xmax, ymax)]
     
-    logger.info('Use this rotation matrix: \n ' + str(R))
+    logger.info('Use this rotation matrix to correct for bank angle (z axis): \n ' + str(Rz))
+    logger.info('Use this rotation matrix to correct for soft-iron effects (x and y axis): \n ' + str(Rxy))
+    logger.info('Use these factors to correct for soft-iron effects (x-y plane): \n ' + str(factors))
     
     if options.displayData:
         fig = plt.figure(facecolor='white')
@@ -116,6 +158,9 @@ def main(args=None):
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
+        ax.view_init(elev=90.0, azim=0.0)
+        ax.set_xlim(limits)
+        ax.set_ylim(limits)
         
         # Raw
         xs, ys, zs = data[:,0], data[:,1], data[:,2]
