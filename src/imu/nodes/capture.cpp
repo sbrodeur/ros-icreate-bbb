@@ -131,7 +131,7 @@ class CaptureNode {
                 msgMag.header.frame_id = "imu_link";
 
                 float wXBias =  0.28;
-                float wYBias = -0.06;
+                float wYBias = -0.08;
                 float wXScale = 1; //5;
                 float wYScale = 1; //5;
                 float wZScale = 1; //2;
@@ -141,6 +141,7 @@ class CaptureNode {
                 msgMag.magnetic_field.y = wYScale*(lms303_.getMagY() + wYBias)/10000.0;
                 msgMag.magnetic_field.z = wZScale* lms303_.getMagZ()/10000.0;
 
+                msgMag  = applyMagneticCorrection(msgMag);
                 pubMag_.publish(msgMag);
 
 
@@ -186,6 +187,57 @@ class CaptureNode {
 
             return wQuart;
         }
+        
+        sensor_msgs::MagneticField applyMagneticCorrection(sensor_msgs::MagneticField iCaptured)
+        {
+            sensor_msgs::MagneticField wNewMagField = iCaptured;
+            
+            float magRotz[3][3] = { {        1.0,        0.0, 0.01210895  } ,
+                                    {        0.0,        1.0,-0.07008269  } ,
+                                    {-0.01196388, 0.07537973,        1.0  } };
+
+            float magRotxy[3][3] = { {-0.89454802, 0.44697185,        0.0  } ,
+                                     {-0.44697185,-0.89454802,        0.0  } ,
+                                     {        0.0,        0.0,        1.0  } };
+            float magFacxy[2] = { 0.93332936, 1.07692837};
+            
+            //Apply bank correction
+            float flatMagFieldx = magRotz[0][0]*iCaptured.magnetic_field.x + 
+                                  magRotz[0][1]*iCaptured.magnetic_field.y +
+                                  magRotz[0][2]*iCaptured.magnetic_field.z  ;
+            float flatMagFieldy = magRotz[1][0]*iCaptured.magnetic_field.x + 
+                                  magRotz[1][1]*iCaptured.magnetic_field.y +
+                                  magRotz[1][2]*iCaptured.magnetic_field.z  ;
+            float flatMagFieldz = magRotz[2][0]*iCaptured.magnetic_field.x + 
+                                  magRotz[2][1]*iCaptured.magnetic_field.y +
+                                  magRotz[2][2]*iCaptured.magnetic_field.z  ;
+            //Apply soft-iron correction
+
+            float siCorrx = magRotxy[0][0]*flatMagFieldx + 
+                            magRotxy[0][1]*flatMagFieldy +
+                            magRotxy[0][2]*flatMagFieldz  ;
+            float siCorry = magRotxy[1][0]*flatMagFieldx + 
+                            magRotxy[1][1]*flatMagFieldy +
+                            magRotxy[1][2]*flatMagFieldz  ;
+            float siCorrz = magRotxy[2][0]*flatMagFieldx + 
+                            magRotxy[2][1]*flatMagFieldy +
+                            magRotxy[2][2]*flatMagFieldz  ;
+            //Apply soft-iron correction
+            siCorrx *= magFacxy[0];
+            siCorry *= magFacxy[1];
+            
+            wNewMagField.magnetic_field.x = magRotxy[0][0]*siCorrx + 
+                                            magRotxy[1][0]*siCorry +
+                                            magRotxy[2][0]*siCorrz  ;
+            wNewMagField.magnetic_field.y = magRotxy[0][1]*siCorrx + 
+                                            magRotxy[1][1]*siCorry +
+                                            magRotxy[2][1]*siCorrz  ;
+            wNewMagField.magnetic_field.z = magRotxy[0][2]*siCorrx + 
+                                            magRotxy[1][2]*siCorry +
+                                            magRotxy[2][2]*siCorrz  ;
+            return wNewMagField;
+        }
+
 };
 
 int main(int argc, char **argv) {
