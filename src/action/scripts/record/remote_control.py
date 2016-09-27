@@ -217,6 +217,7 @@ class RemoteControl(Behaviour):
         self.timeStartRecord = rospy.Time.now()
         self.recordingNumber = 0
         self.rosRecordingProcess = None 
+        self.rosbagSaveLoc= rospy.get_param('~rosbag_loc', '/root/work/rosbags')
 
     def executeControl(self, state):
         
@@ -248,7 +249,8 @@ class RemoteControl(Behaviour):
             rospy.logwarn("Will start Recording!")
             self.timeStartRecord = rospy.Time.now()
             self.recording = True
-            startLnhRecording = 'rosbag record -a --duration=10m -O /root/work/rosbags/session_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.bag'
+            args="--regex '/(rosout|rosout_agg|imu/(.*)|irobot_create/(.*)|audio/(left|right)/raw|video/(left|right)/(compressed|camera_info)|tf)' --quiet --buffsize=128 "
+            startLnhRecording = 'rosbag record ' + args + ' --duration=10m -O' + self.rosbagSaveLoc + '/session_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.bag'
 
             # Launch command in a subprocess
             self.rosRecordingProcess = subprocess.Popen(startLnhRecording, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
