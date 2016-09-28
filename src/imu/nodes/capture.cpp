@@ -102,9 +102,6 @@ class CaptureNode {
                 msgPos.orientation.y = 0;
                 msgPos.orientation.z = 0;
                 msgPos.orientation.w = 0;
-                //msgPos.orientation          = quaternionFromPitchRoll(-(lms303_.getPitch()), 
-                //                                                      -(lms303_.getRoll()) );    
-                //msg.orientation_covariance         = ;
                 
                 //Convert to rad/sec
                 //NOTE inverted x and y axis intentional. lms303 and Gyro 
@@ -130,16 +127,10 @@ class CaptureNode {
                 msgMag.header.stamp = ros::Time::now();
                 msgMag.header.frame_id = "imu_link";
 
-                float wXBias =  0.28;
-                float wYBias = -0.08;
-                float wXScale = 1; //5;
-                float wYScale = 1; //5;
-                float wZScale = 1; //2;
-                
                 // Y -> North X -> East, inverted values for IMU consolidator
-                msgMag.magnetic_field.x = wXScale*(lms303_.getMagX() + wXBias)/10000.0;
-                msgMag.magnetic_field.y = wYScale*(lms303_.getMagY() + wYBias)/10000.0;
-                msgMag.magnetic_field.z = wZScale* lms303_.getMagZ()/10000.0;
+                msgMag.magnetic_field.x = lms303_.getMagX()/10000.0;
+                msgMag.magnetic_field.y = lms303_.getMagY()/10000.0;
+                msgMag.magnetic_field.z = lms303_.getMagZ()/10000.0;
 
                 msgMag  = applyMagneticCorrection(msgMag);
                 pubMag_.publish(msgMag);
@@ -161,46 +152,24 @@ class CaptureNode {
         }
 
 
-        geometry_msgs::Quaternion quaternionFromPitchRoll(float iPitch, float iRoll)
-        {
-            
-            float wPitchRad = iPitch/180 * PI;
-            float wRollRad  = iRoll/180 * PI;
-            float wYawRad = 0;
-
-            float C1 = cos(wYawRad/2);
-            float C2 = cos(wPitchRad/2);
-            float C3 = cos(wRollRad/2);
-            float S1 = sin(wYawRad/2);
-            float S2 = sin(wPitchRad/2);
-            float S3 = sin(wRollRad/2);
-            
-            geometry_msgs::Quaternion wQuart;
-            //wQuart.w = sqrt(1.0 + C1*C2 + C1*C3 - S1*S2*S3 + C2*C3)/2.0;
-            //wQuart.x = (C2*S3 + C1*S3 + S1*S2*C3)/(4.0*wQuart.w);  
-            //wQuart.y = (S1*C2 + S1*C3 + C1*S2*S3)/(4.0*wQuart.w);
-            //wQuart.z = (-S1*S3 + C1*S3*C3 + S2)/(4.0*wQuart.w);
-            wQuart.w = C1*C2*C3 - S1*S2*S3;
-            wQuart.x = S1*S2*C3 + C1*C2*S3;
-            wQuart.y = S1*C2*C3 + C1*S2*S3;
-            wQuart.z = C1*S2*C3 - S1*C2*S3;
-
-            return wQuart;
-        }
         
-        sensor_msgs::MagneticField applyMagneticCorrection(sensor_msgs::MagneticField iCaptured)
+        sensor_msgs::MagneticField applyMagneticCorrection(const sensor_msgs::MagneticField & iCaptured)
         {
             sensor_msgs::MagneticField wNewMagField = iCaptured;
-            
-            float magRotz[3][3] = { {        1.0,        0.0, 0.01210895  } ,
-                                    {        0.0,        1.0,-0.07008269  } ,
-                                    {-0.01196388, 0.07537973,        1.0  } };
+           
+            //Correction constants
+            const float magRotz[3][3] = { {        1.0,        0.0, 0.00703476  } ,
+                                          {        0.0,        1.0,-0.07186357  } ,
+                                          {-0.00698555, 0.07744466,        1.0  } };
 
-            float magRotxy[3][3] = { {-0.89454802, 0.44697185,        0.0  } ,
-                                     {-0.44697185,-0.89454802,        0.0  } ,
-                                     {        0.0,        0.0,        1.0  } };
-            float magFacxy[2] = { 0.93332936, 1.07692837};
+            const float magRotxy[3][3] = { {-0.74874188, 0.66286168,        0.0  } ,
+                                           {-0.66286168,-0.74874188,        0.0  } ,
+                                           {        0.0,        0.0,        1.0  } };
+            const float magFacxy[2] = { 0.93773639, 1.07111999};
             
+            const float xOffset =  0.00002768;
+            const float yOffset = -0.00000528;
+
             //Apply bank correction
             float flatMagFieldx = magRotz[0][0]*iCaptured.magnetic_field.x + 
                                   magRotz[0][1]*iCaptured.magnetic_field.y +
@@ -222,7 +191,7 @@ class CaptureNode {
             float siCorrz = magRotxy[2][0]*flatMagFieldx + 
                             magRotxy[2][1]*flatMagFieldy +
                             magRotxy[2][2]*flatMagFieldz  ;
-            //Apply soft-iron correction
+            
             siCorrx *= magFacxy[0];
             siCorry *= magFacxy[1];
             
@@ -235,6 +204,12 @@ class CaptureNode {
             wNewMagField.magnetic_field.z = magRotxy[0][2]*siCorrx + 
                                             magRotxy[1][2]*siCorry +
                                             magRotxy[2][2]*siCorrz  ;
+
+            //Apply centering offsets (hard-iron correction)
+            wNewMagField.magnetic_field.x += xOffset;
+            wNewMagField.magnetic_field.y += yOffset;
+
+
             return wNewMagField;
         }
 
