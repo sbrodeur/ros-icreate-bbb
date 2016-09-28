@@ -213,7 +213,7 @@ class RemoteControl(Behaviour):
         self.ledControl = rospy.ServiceProxy('/irobot_create/leds', Leds)
         Behaviour.__init__(self, priority, controller)
         self.rospack = rospkg.RosPack()
-        self.durationOfRecording = rospy.Duration.from_sec(600.1)
+        self.durationOfRecording = rospy.Duration.from_sec(900.1)
         self.timeStartRecord = rospy.Time.now()
         self.recordingNumber = 0
         self.rosRecordingProcess = None 
@@ -250,7 +250,7 @@ class RemoteControl(Behaviour):
             self.timeStartRecord = rospy.Time.now()
             self.recording = True
             args="--regex '/(rosout|rosout_agg|imu/(.*)|irobot_create/(.*)|audio/(left|right)/raw|video/(left|right)/(compressed|camera_info)|tf)' --quiet --buffsize=128 "
-            startLnhRecording = 'rosbag record ' + args + ' --duration=10m -O' + self.rosbagSaveLoc + '/session_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.bag'
+            startLnhRecording = 'rosbag record ' + args + ' --duration=15m -O' + self.rosbagSaveLoc + '/session_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.bag'
 
             # Launch command in a subprocess
             self.rosRecordingProcess = subprocess.Popen(startLnhRecording, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -299,7 +299,7 @@ class RemoteControl(Behaviour):
             except rospy.ServiceException, e:
                 rospy.logwarn( "Service call failed: %s", e)
         
-        #stop lock on recording after 10min
+        #stop lock on recording after 15min
         if (rospy.Time.now() - self.timeStartRecord ) > self.durationOfRecording:
             if self.recording == True:
                 self.recording = False
