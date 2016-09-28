@@ -82,7 +82,8 @@ class RobotState:
         self.distance += distance
         
     def getOdomDistance(self):
-        return self.distance
+        #return in mm
+        return self.distance*1000.0
     
 class Behaviour:
 
