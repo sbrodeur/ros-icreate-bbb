@@ -32,6 +32,7 @@ import sys
 import numpy
 import Queue
 import numpy as np
+import csv
 
 import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
@@ -71,15 +72,22 @@ class RealtimeMagneticFieldPlotter:
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
-        ax.view_init(elev=45.0, azim=45.0)
+        ax.view_init(elev=90.0, azim=90.0)
         
         self.fig = fig
         self.ax = ax
         self.arrow = None
         self.text = None
         
+        
         input = rospy.get_param('~input', '/imu/mag')
         rospy.Subscriber(input, MagneticField, RealtimeMagneticFieldPlotter.callback, self)
+        
+        self.genMagProfile = rospy.get_param('~generate_mag_profile', False)
+        if(self.genMagProfile):
+            self.csvfile = open('magPoints.csv','w')
+            self.magPointWriter = csv.writer(self.csvfile, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+
 
     def animate(self):
         try:
@@ -96,7 +104,7 @@ class RealtimeMagneticFieldPlotter:
                 # Update existing line plot
                 self.arrow.set_data([0.0, x], [0.0, y], [0.0, z])
                 
-            limits = [-1.0e-1, 1.0e-1]
+            limits = [-1.0e-4, 1.0e-4]
             norm = np.linalg.norm(vector, 2) * 1e6
             if self.text is None:
                 text = self.ax.text(0, 0, limits[1]/5.0, "%4.1f uT" % (norm),
@@ -121,6 +129,9 @@ class RealtimeMagneticFieldPlotter:
             vector = np.array([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z], dtype=np.float64)
             self.q.put(vector)
             
+            if(self.genMagProfile):
+                self.magPointWriter.writerow([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z])
+            
         else:
             # Discard the message
             pass
@@ -134,4 +145,7 @@ if __name__ == '__main__':
         while not rospy.is_shutdown():
             viewer.animate()
  
-    except rospy.ROSInterruptException: pass
+    except rospy.ROSInterruptException:
+        if(self.genMagProfile):
+            self.csvfile.close()
+        pass
