@@ -12,7 +12,7 @@ source /opt/ros/kinetic/setup.bash
 source $CATKIN_WORKSPACE_DIR/devel/setup.bash
 export PYTHONPATH=$CATKIN_WORKSPACE_DIR/src/irobot_create/src:$PYTHONPATH
 
-/opt/ros/indigo/bin/roscore -p $ROS_PORT &
+/opt/ros/kinetic/bin/roscore -p $ROS_PORT &
 sleep 4
 
 # Configure Quickcam Pro 9000 camera
