@@ -218,6 +218,8 @@ class RemoteControl(Behaviour):
         self.recordingNumber = 0
         self.rosRecordingProcess = None 
         self.rosbagSaveLoc= rospy.get_param('~rosbag_loc', '/root/work/rosbags')
+        self.oldXInput = 0
+        self.oldYInput = 0
 
     def executeControl(self, state):
         
@@ -240,9 +242,6 @@ class RemoteControl(Behaviour):
         if not self.enabled:
             return None
         
-        x,y = self.joystick.getState()
-        left = 0.0
-        right = 0.0
         
         recordActivation = self.joystick.button_states['b'] and self.joystick.button_states['y']
         if recordActivation == 1 and self.recording == False:
@@ -304,8 +303,12 @@ class RemoteControl(Behaviour):
             if self.recording == True:
                 self.recording = False
 
-        #adding minimum movement requirement
-        if abs(x) > 0.2 or abs(y) > 0.2:
+        x,y = self.joystick.getState()
+        left = 0.0
+        right = 0.0
+        
+        #adding and change checker minimum movement requirement
+        if (x != self.oldXInput or y != self.oldYInput) and (abs(x) > 0.2 or abs(y) > 0.2):
            
             # Avoid small controller deviations, that make it hard to go in a straight line
             if abs(x) < 0.2:

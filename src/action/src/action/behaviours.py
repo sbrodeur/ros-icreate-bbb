@@ -160,14 +160,14 @@ class BehaviourController:
                 
     def executeAction(self, action, state):
         if isinstance(action, MotorAction):
-            #if self.lastMotorAction == None or (self.lastMotorAction.leftSpeed != action.leftSpeed or self.lastMotorAction.rightSpeed != action.rightSpeed):
-            # Send command to motor
-            msg = MotorSpeed()
-            msg.left = action.leftSpeed
-            msg.right = action.rightSpeed
-            self.rawPub.publish(msg)
+            if self.lastMotorAction == None or (self.lastMotorAction.leftSpeed != action.leftSpeed or self.lastMotorAction.rightSpeed != action.rightSpeed):
+            	# Send command to motor
+            	msg = MotorSpeed()
+            	msg.left = action.leftSpeed
+            	msg.right = action.rightSpeed
+            	self.rawPub.publish(msg)
         
-            self.lastMotorAction = action
+            	self.lastMotorAction = action
             #else:
             #    # Do not send command, keep current state
             #    pass
