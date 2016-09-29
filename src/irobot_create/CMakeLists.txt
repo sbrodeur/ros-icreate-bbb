@@ -4,7 +4,7 @@ project(irobot_create)
 find_package(catkin REQUIRED COMPONENTS message_generation std_msgs sensor_msgs)
 
 add_message_files(DIRECTORY msg FILES MotorSpeed.msg Contact.msg IrRange.msg ) 
-add_service_files(DIRECTORY srv FILES Brake.srv Circle.srv Demo.srv Dock.srv Leds.srv Reset.srv Start.srv Stop.srv Tank.srv Turn.srv)
+add_service_files(DIRECTORY srv FILES Brake.srv Circle.srv Demo.srv Dock.srv Leds.srv Reset.srv Start.srv Stop.srv Tank.srv Turn.srv Beep.srv)
 
 catkin_python_setup()
 

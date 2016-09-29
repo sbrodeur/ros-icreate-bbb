@@ -208,9 +208,10 @@ class RemoteControl(Behaviour):
         self.enabled = True
         self.mode = None
         self.recording = False
-        rospy.wait_for_service('/irobot_create/leds')
-        self.recordBag = rospy.ServiceProxy('/irobot_create/record', Record)
-        self.ledControl = rospy.ServiceProxy('/irobot_create/leds', Leds)
+        #rospy.wait_for_service('/irobot_create/leds')
+        #self.recordBag = rospy.ServiceProxy('/irobot_create/record', Record)
+        rospy.wait_for_service('irobot_create/beep')
+        self.beepControl = rospy.ServiceProxy('/irobot_create/beep', Beep)
         Behaviour.__init__(self, priority, controller)
         self.rospack = rospkg.RosPack()
         self.durationOfRecording = rospy.Duration.from_sec(900.1)
@@ -258,10 +259,7 @@ class RemoteControl(Behaviour):
             #Blink led once
             try :
                 #respBag = self.recordBag(10)
-                resp = self.ledControl(False, True, 255, 255)
-                rospy.sleep(1)
-                resp = self.ledControl(False, True , 0,0)
-                rospy.sleep(1)
+                self.beepControl(1)
             except rospy.ServiceException, e:
                 rospy.logwarn( "Service call failed: %s", e)
            
@@ -288,13 +286,7 @@ class RemoteControl(Behaviour):
             rospy.logwarn("Stopped recording rosbag")        
             #Blink led twice
             try :
-                resp = self.ledControl(False, True, 255, 255)
-                rospy.sleep(1)
-                resp = self.ledControl(False, True, 0, 0)
-                rospy.sleep(1)
-                resp = self.ledControl(False, True, 255, 255)
-                rospy.sleep(1)
-                resp = self.ledControl(False, True, 0, 0)
+                self.beepControl(2)
             except rospy.ServiceException, e:
                 rospy.logwarn( "Service call failed: %s", e)
         
@@ -302,6 +294,7 @@ class RemoteControl(Behaviour):
         if (rospy.Time.now() - self.timeStartRecord ) > self.durationOfRecording:
             if self.recording == True:
                 self.recording = False
+                self.beepControl(3)
 
         x,y = self.joystick.getState()
         left = 0.0
@@ -362,7 +355,7 @@ if __name__ == '__main__':
     try:
         rospy.init_node('remote_control', log_level=rospy.INFO)
         dev = rospy.get_param('~joystick_dev', '/dev/input/js0')
-        controller = BehaviourController(rate=15)
+        controller = BehaviourController(rate=7)
         controller.addBehaviour(RemoteControl(dev), priority=0)
         controller.spin()
 

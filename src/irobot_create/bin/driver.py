@@ -14,7 +14,7 @@ from tf.broadcaster import TransformBroadcaster
 from sensor_msgs.msg import BatteryState
 
 from irobot_create.msg import MotorSpeed, Contact, IrRange
-from irobot_create.srv import Brake, Circle, Demo, Dock, Leds, Reset, Start, Stop, Tank, Turn
+from irobot_create.srv import Brake, Circle, Demo, Dock, Leds, Reset, Start, Stop, Tank, Turn, Beep
 
 class SafetyRestriction(object):
     NONE = 0
@@ -302,6 +302,12 @@ class CreateDriver:
         self.docking = True
         return DockResponse(True)
 
+    def beep(self,req):
+        for i in range(0,req.times):
+            self.create.beep()
+            rospy.sleep(0.5)
+        return True
+
     def twist(self,req):
         x = req.linear.x*1000.
         th = req.angular.z
@@ -362,6 +368,7 @@ if __name__ == '__main__':
     rospy.Service(driver.name + '/tank',Tank,driver.tank)
     rospy.Service(driver.name + '/turn',Turn,driver.turn)
     rospy.Service(driver.name + '/dock',Dock,driver.dock)
+    rospy.Service(driver.name + '/beep',Beep,driver.beep)
     
     rospy.Subscriber(driver.name + "/cmd_twist", Twist, driver.twist)
     rospy.Subscriber(driver.name + "/cmd_raw", MotorSpeed, driver.vel)
