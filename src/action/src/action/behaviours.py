@@ -163,8 +163,10 @@ class BehaviourController:
             if self.lastMotorAction == None or (self.lastMotorAction.leftSpeed != action.leftSpeed or self.lastMotorAction.rightSpeed != action.rightSpeed):
             	# Send command to motor
             	msg = MotorSpeed()
-            	msg.left = action.leftSpeed
-            	msg.right = action.rightSpeed
+                msg.header.stamp      =  rospy.Time.now()
+                msg.header.frame_id   =  "cmd_raw"
+            	msg.left              =  action.leftSpeed
+            	msg.right             =  action.rightSpeed
             	self.rawPub.publish(msg)
         
             	self.lastMotorAction = action
