@@ -250,7 +250,7 @@ class RemoteControl(Behaviour):
             self.timeStartRecord = rospy.Time.now()
             self.recording = True
             args="--regex '/(rosout|rosout_agg|imu/(.*)|irobot_create/(.*)|audio/(left|right)/raw|video/(left|right)/(compressed|camera_info)|tf)' --quiet --buffsize=128 "
-            startLnhRecording = 'rosbag record ' + args + ' --duration=15m -O' + self.rosbagSaveLoc + '/session_' + time.strftime("%Y%m%d_%H%M%S", time.gmtime()) + '.bag'
+            startLnhRecording = 'rosbag record ' + args + ' --duration=15m -O' + self.rosbagSaveLoc + '/session_' + time.strftime("%Y%m%d_%H%M%S", time.localtime()) + '.bag'
 
             # Launch command in a subprocess
             self.rosRecordingProcess = subprocess.Popen(startLnhRecording, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -296,18 +296,18 @@ class RemoteControl(Behaviour):
                 self.recording = False
                 self.beepControl(3)
 
-        x,y = self.joystick.getState()
+        x,y = self.joystick.getState()   
         left = 0.0
         right = 0.0
-        
+
         #adding and change checker minimum movement requirement
         if (x != self.oldXInput or y != self.oldYInput) and (abs(x) > 0.2 or abs(y) > 0.2):
            
             # Avoid small controller deviations, that make it hard to go in a straight line
             if abs(x) < 0.2:
-                x = 0
+                x = 0.0
             if abs(y) < 0.2:
-                y = 0
+                y = 0.0
 
             # Conversion algorithm adapted from:
             # http://www.goodrobot.com/en/2009/09/tank-drive-via-joystick-control/
