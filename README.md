@@ -12,7 +12,7 @@ ROS (Robotic Operating System) packages for the iRobot Create with onboard Beagl
 * Dual Logitech Quickcam Pro 9000 camera
 * 5A DC-DC Adjustable Buck Step Down Module 24V/12V/5V Voltage Regulator Converter (unregulated battery to 5V)
 * Real Time Clock Memory Module (DS3231) 
-* 10DOF IMU: accelerometer and magnetometer (LSM303D), gyroscope (L3GD20), compass (BMP180, not used)
+* 10DOF IMU: accelerometer and magnetometer (LSM303D), gyroscope (L3GD20), pressure sensor (BMP180, not used)
 * 802.11n/g/b 150Mbps Mini USB WiFi Wireless Adapter Network LAN Card w/Antenna (Ralink RT5370)
 
 For remote control:
