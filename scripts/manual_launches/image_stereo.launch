@@ -1,5 +1,7 @@
 <launch>
 
+<!-- sync both video feeds, reverses right camera, and republishes in raw format -->
+
 <node name="syncer" pkg="camera" type="syncImage.py" output="screen" >
 	<param name="inputNamespace" value="/video" />        
 	<param name="outputNamespace" value="/video/sync" />

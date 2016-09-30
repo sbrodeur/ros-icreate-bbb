@@ -1,0 +1,15 @@
+<launch>
+
+<!-- Launches 2 windows with camera views, Right camera is physically reversed -->
+
+<node name="viewer1" pkg="camera" type="viewer" output="screen">
+    <param name="input" value="/video/left" />
+</node>
+
+<node name="viewer2" pkg="camera" type="viewer" output="screen">
+    <param name="input" value="/video/right" />
+</node>
+
+</launch>
+
+

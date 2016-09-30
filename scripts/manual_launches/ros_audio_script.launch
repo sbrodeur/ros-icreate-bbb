@@ -1,0 +1,15 @@
+<launch>
+
+<!-- Launches 2 windows with live audio graphs -->
+
+<node name="viewer_audio_left" pkg="audio" type="viewer.py" output="screen">
+    <param name="input" value="/audio/left/raw" />
+</node>
+
+<node name="viewer_audio_right" pkg="audio" type="viewer.py" output="screen">
+    <param name="input" value="/audio/right/raw" />
+</node>
+
+</launch>
+
+

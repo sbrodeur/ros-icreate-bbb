@@ -1,0 +1,13 @@
+<launch>
+
+
+<!-- Starts joystick manual control of the the robot -->
+
+<node name="joystick" pkg="action" type="remote_control.py" output="screen">
+    <param name="~joystick_dev" value="/dev/input/js0"/>
+    <param name="~rosbag_loc" value="/home/cars2019/Documents/rosbags"/>
+</node>
+
+
+</launch>
+
