@@ -13,7 +13,7 @@ import rospy
 #Fetches the rosbag and its topics
 class RosbagStatistics :
     
-    def __init__( self, iRosbagName ):
+    def __init__( self, iRosbagName, ignoreTopics=[] ):
         
         self.mRosbag = rosbag.Bag(iRosbagName)
                
@@ -23,7 +23,8 @@ class RosbagStatistics :
         #Generate Topic statisitics objects
         self.mTopicsStatList = np.array([])
         for topicName in wTopicsNamesList:
-            self.mTopicsStatList = np.append(self.mTopicsStatList, TopicStatistics(topicName))
+            if not topicName in ignoreTopics:
+                self.mTopicsStatList = np.append(self.mTopicsStatList, TopicStatistics(topicName))
 
         for topic, msg, t in self.mRosbag.read_messages(): 
             for tTopicStat in self.mTopicsStatList :
@@ -45,7 +46,7 @@ class RosbagStatistics :
             topicStat.printHistogram()
 
     def printTabulatedResults(self, toFile="" ):
-        wCatNames = np.array([["Topic name", "Mean", "Average Rate", "Std Deviation", "Nb of Messages", "Est dropped %" ]])
+        wCatNames = np.array([["Topic name", "Average Rate", "Average Period" ,"Std Deviation Period", "Nb of Messages", "Est dropped %" ]])
         wTable = np.array([[]])
         
         for topicStat in self.mTopicsStatList:
@@ -73,16 +74,17 @@ class TopicStatistics :
         self.mTopicName = str(iTopicName)
         self.mTimestampList = np.array([])
         self.mTimesBetweenMsgs = np.array([])
+        self.mRateOfMsgs = np.array([])
         self.mThres = iThres           #threshold to indicate dropped message
 
         #Statistics vars
         self.mAverageRate = 0
+        self.mStdDeviationRate = 0
         self.mMean = 0
         self.mStdDeviation = 0
         self.mVariance = 0
         self.mNumOfDroppedMsgs = 0
-        self.mHistogram = np.histogram(np.array([]))
-
+        
     def addStamps(self, time):
         self.mTimestampList = np.append(self.mTimestampList, time)
     
@@ -98,11 +100,13 @@ class TopicStatistics :
             self.mVariance = sum((self.mTimesBetweenMsgs - self.mMean)**2)/float(len(self.mTimesBetweenMsgs))
             self.mStdDeviation = math.sqrt(self.mVariance)
             self.mAverageRate = 1.0/self.mMean
+            self.mRateOfMsgs = np.divide(1.0, self.mTimesBetweenMsgs)
+              
+            self.mStdDeviationRate = 1.0/self.mStdDeviation
+            
             for tDur in self.mTimesBetweenMsgs :
                 if(tDur > self.mMean + self.mMean*self.mThres):
                     self.mNumOfDroppedMsgs += 1
-            wHistDomain = self.mMean + 5.0*self.mStdDeviation 
-            self.mHistogram = np.histogram(self.mTimesBetweenMsgs, bins=50)    
 
     def sanityCheck(self):
         if self.mTimestampList.size == 0:
@@ -126,11 +130,11 @@ class TopicStatistics :
         return wPrintMsg 
 
     def getStatsTable(self):
-        return np.array([[str(self.mTopicName),  self.mMean, self.mAverageRate, self.mStdDeviation, self.mTimestampList.size, float(self.mNumOfDroppedMsgs)/float(self.mTimestampList.size)*100.0]])
+        return np.array([[str(self.mTopicName), self.mAverageRate, self.mMean, self.mStdDeviation, self.mTimestampList.size, float(self.mNumOfDroppedMsgs)/float(self.mTimestampList.size)*100.0]])
 
     def printHistogram(self):
         
-        plt.hist(self.mTimesBetweenMsgs, bins=300)  
+        plt.hist(self.mTimesBetweenMsgs, bins=500)  
         plt.axvline(self.mMean, color='k')
         plt.axvline(self.mMean - self.mStdDeviation, color='r')
         plt.axvline(self.mMean + self.mStdDeviation, color='r')
@@ -152,6 +156,7 @@ if __name__ == '__main__':
     parser.add_option("-s", action="store_true", dest="sameOutputDest", 
              help="Output stats file into the same location as the rosbag", default=False)
      
+    parser.add_option("-r", dest="topicRemove", help="Comma seperated list of topics to ignore", default="")
     (options, args) = parser.parse_args()
 
     if not options.filename:
@@ -160,8 +165,11 @@ if __name__ == '__main__':
     if  options.outputDest and options.sameOutputDest:
         parser.error("-o and -s are mutually exclusive ")
 
-
-    rosStats = RosbagStatistics(options.filename)
+    ignoreList = []
+    if options.topicRemove:
+        ignoreList = options.topicRemove.split(',') 
+     
+    rosStats = RosbagStatistics(options.filename, ignoreTopics=ignoreList)
     rosStats.generateStats()
 
     if options.outputDest :
