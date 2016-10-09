@@ -163,22 +163,14 @@ class BehaviourController:
             if self.lastMotorAction == None or (self.lastMotorAction.leftSpeed != action.leftSpeed or self.lastMotorAction.rightSpeed != action.rightSpeed):
             	# Send command to motor
             	msg = MotorSpeed()
+                msg.header = Header()
                 msg.header.stamp      =  rospy.Time.now()
-                msg.header.frame_id   =  "cmd_raw"
+                msg.header.frame_id   =  "motor_link"
             	msg.left              =  action.leftSpeed
             	msg.right             =  action.rightSpeed
             	self.rawPub.publish(msg)
         
             	self.lastMotorAction = action
-            #else:
-            #    # Do not send command, keep current state
-            #    pass
-        #elif isinstance(action, DockAction):
-        #    if not self.isDocking and not state.contact.homeBase:
-        #        self.isDocking = True
-        #        self.dock()
-        #    elif self.isDocking and state.homeBase:
-        #        self.isDocking = False
 
     def spin(self):
         

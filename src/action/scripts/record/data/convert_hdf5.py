@@ -32,8 +32,9 @@ import sys
 import os
 import logging
 import itertools
-import h5py
 import numpy as np
+
+from h5utils import Hdf5Dataset
 from optparse import OptionParser
 
 import rospy
@@ -206,118 +207,6 @@ class StateSaver(object):
             
         if self.countProcessed > 0 and self.countProcessed % 100 == 0:
             logger.info('Processed %d messages out of %d total messages' % (self.countProcessed, self.countTotal))
-        
-class Hdf5Bag:
-
-    def __init__(self, filePath, chunkSize=32, overwrite=False):
-        self.chunkSize = chunkSize
-        
-        # Possible optimization: libver='latest'
-        if overwrite:
-            # Create file, truncate if exists
-            self.h = h5py.File(filePath, mode='w')
-        else:
-            # Read/write if exists, create otherwise (default)
-            self.h = h5py.File(filePath, mode='a')
-        
-        self.datasets = {}
-        self.nbStateSamples = {}
-    
-    def addState(self, name, state, t, group=None, variableShape=False, maxShape=None):
-        
-        if group is not None:
-            baseName = '/' + group + '/' + name
-        else:
-            baseName = '/' + name
-        
-        datasetName = baseName + '/raw'
-        clockName = baseName + '/clock'
-        shapeName = baseName + '/shape'
-        
-        if datasetName not in self.datasets:
-        
-            if group is not None:
-                try:
-                    file = self.h.create_group(group)
-                except ValueError:
-                    file = self.h[group]
-            else:
-                file = self.h
-        
-            group = file.create_group(name)
-        
-            # NOTE: we need to create a dataset for each state once knowing the shape of the state,
-            #       so the compression can use adequate chunk size
-            if variableShape:
-                dataShape = maxShape
-            else:
-                dataShape = state.shape
-
-            dataset = group.create_dataset('raw',
-                                            shape=(self.chunkSize,) + dataShape, maxshape=(None,) + dataShape, 
-                                            dtype=state.dtype,
-                                            chunks=True,
-                                            compression='gzip', compression_opts=6, shuffle=True)
-            self.datasets[dataset.name] = dataset
-            self.nbStateSamples[dataset.name] = 0
-            
-            clockDataset = group.create_dataset('clock',
-                                                 shape=(self.chunkSize,), maxshape=(None,), 
-                                                 dtype=np.float64)
-            self.datasets[clockDataset.name] = clockDataset
-            self.nbStateSamples[clockDataset.name] = 0
-            
-            if variableShape:
-                shapeDataset = group.create_dataset('shape',
-                                                    shape=(self.chunkSize, state.ndim), maxshape=(None, state.ndim), 
-                                                    dtype=np.int64)
-                
-                self.datasets[shapeDataset.name] = shapeDataset
-                self.nbStateSamples[shapeDataset.name] = 0
-        else:
-            dataset = self.datasets[datasetName]
-            clockDataset = self.datasets[clockName]
-            if variableShape:
-                shapeDataset = self.datasets[shapeName]
-            
-        nbStateSamples = self.nbStateSamples[dataset.name]
-        
-        # Resize dataset if necessary
-        if nbStateSamples >= dataset.shape[0]:
-            newShape = np.ceil(float(nbStateSamples + 1) / self.chunkSize) * self.chunkSize
-            dataset.resize(newShape, axis=0)
-            clockDataset.resize(newShape, axis=0)
-            if variableShape:
-                shapeDataset.resize(newShape, axis=0)
-            self.h.flush()
-            
-        # Append state data to dataset
-        if variableShape:
-            slices = (nbStateSamples,)
-            for i in state.shape:
-                slices += (slice(0, i),)
-            dataset[slices] = state
-            shapeDataset[nbStateSamples] = state.shape
-        else:
-            dataset[nbStateSamples] = state
-        clockDataset[nbStateSamples] = t
-        
-        self.nbStateSamples[dataset.name] += 1
-        self.nbStateSamples[clockDataset.name] += 1
-        if variableShape:
-            self.nbStateSamples[shapeDataset.name] += 1
-            
-    def close(self):
-        for name, dataset in self.datasets.iteritems():
-            # Truncate dataset to the actual number of state samples
-            dataset.resize(self.nbStateSamples[name], axis=0)
-        self.h.close()
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, tb):
-        self.close()
 
 def main(args=None):
 
@@ -346,9 +235,14 @@ def main(args=None):
     datasetPath = os.path.abspath(options.output)    
     logger.info('Using output hdf5 file: %s' % (datasetPath))
     
+    ignoredTopics = ['/rosout', '/rosout_agg', '/tf',
+                     '/video/left/camera_info', '/video/right/camera_info',
+                     '/madgwick/parameter_descriptions', '/madgwick/parameter_updates',
+                     '/irobot_create/cmd_raw']
+    
     startTime = float(options.startTime)
     stopTime = float(options.stopTime)
-    with Hdf5Bag(datasetPath, chunkSize=int(options.chunkSize), overwrite=True) as outHdf5:
+    with Hdf5Dataset(datasetPath, mode='w', chunkSize=int(options.chunkSize)) as outHdf5:
         
         referenceTime = None
         if options.useRelativeTime:
@@ -359,6 +253,10 @@ def main(args=None):
                     topics = sorted(set([c.topic for c in inbag._get_connections()]))
                     timestamps = []
                     for topic in topics:
+                        # Skip ignored topics
+                        if topic in ignoredTopics:
+                            continue
+                        
                         minTimestamp = None
                         count = 0
                         for _, msg, _ in inbag.read_messages(topics=[topic]):
@@ -370,10 +268,10 @@ def main(args=None):
                                 if count >= MAX_COUNT:
                                     break
                             break
+                        
                         if minTimestamp is not None:
                             timestamps.append(minTimestamp)
                     referenceTime = np.min(timestamps)
-                    print referenceTime, timestamps
                 else:
                     # Use the timestamp of the first recorded message
                     for _, _, timestamp in inbag.read_messages():
@@ -384,10 +282,6 @@ def main(args=None):
         with rosbag.Bag(rosBagPath) as inbag:
             
             saver = StateSaver(outHdf5)
-            ignoredTopics = ['/rosout', '/rosout_agg', '/tf',
-                             '/video/left/camera_info', '/video/right/camera_info',
-                             '/madgwick/parameter_descriptions',
-                             '/madgwick/parameter_updates']
             
             for topic, msg, timestamp in inbag.read_messages():
                 
@@ -414,7 +308,6 @@ def main(args=None):
                 if t < startTime:
                     continue
 
-                print t                
                 saver.add(topic, msg, t)
                 
                 if stopTime >= 0.0 and t > stopTime:
