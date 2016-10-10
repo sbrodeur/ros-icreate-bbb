@@ -140,7 +140,7 @@ def synchronize_clocks(hdf5bag, fs=20.0, interpolation='nearest', safeBorder=0.0
         name, group, raw, clock, shape = state
         logger.debug('Interpolating state %s (group: %s)' % (name, str(group)))
 
-        if group == 'audio' and interpolation == 'neareast':
+        if group == 'audio' and interpolation == 'nearest':
             # Special processing for audio because we have to rechunk the data
             raw, clock = estimate_audio_timestamps(raw, clock, fs=16000)
             sync_raw, sync_clock = synchronize_audio(raw, clock, sync_clock)

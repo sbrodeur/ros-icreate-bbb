@@ -41,6 +41,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import proj3d
 
 from h5utils import Hdf5Dataset
 from optparse import OptionParser
@@ -48,12 +51,107 @@ from optparse import OptionParser
 logger = logging.getLogger(__name__)
 
 # TODO: odometry-related: orientation, position, twist_angular, twist_linear
-# TODO: motor-related: motor velocities (mm/s)
-# TODO: imu-related: orientation (as 3D vector in space)
 # TODO: collision-related: range sensor, switch sensors
 # TODO: battery-related: charge, status
+
+
+# Adapted from: http://stackoverflow.com/questions/22867620/putting-arrowheads-on-vectors-in-matplotlibs-3d-plot
+class Arrow3D(FancyArrowPatch):
+    def __init__(self, xs, ys, zs, *args, **kwargs):
+        FancyArrowPatch.__init__(self, (0,0), (0,0), *args, **kwargs)
+        self._verts3d = xs, ys, zs
+
+    def set_data(self, xs, ys, zs):
+        self._verts3d = xs, ys, zs
+
+    def draw(self, renderer):
+        xs3d, ys3d, zs3d = self._verts3d
+        xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, renderer.M)
+        self.set_positions((xs[0],ys[0]),(xs[1],ys[1]))
+        FancyArrowPatch.draw(self, renderer)
+        
+# Adapted from: https://afni.nimh.nih.gov/pub/dist/src/pkundu/meica.libs/nibabel/quaternions.py
+def quat2mat(q):
+    w, x, y, z = q
+    Nq = w*w + x*x + y*y + z*z
+    if Nq < np.finfo(np.float64).eps:
+        return np.eye(3)
+    s = 2.0/Nq
+    X = x*s
+    Y = y*s
+    Z = z*s
+    wX = w*X; wY = w*Y; wZ = w*Z
+    xX = x*X; xY = x*Y; xZ = x*Z
+    yY = y*Y; yZ = y*Z; zZ = z*Z
+    return np.array(
+           [[ 1.0-(yY+zZ), xY-wZ, xZ+wY ],
+            [ xY+wZ, 1.0-(xX+zZ), yZ-wX ],
+            [ xZ-wY, yZ+wX, 1.0-(xX+yY) ]])
+
+def exportQuaternionFramesAsVideo(frames, fs, filename, title, grid=False):
+
+    # Create the video file writer
+    writer = animation.FFMpegWriter(fps=fs, codec='libx264')
+    
+    fig = plt.figure(figsize=(5,4), facecolor='white', frameon=False)
+    ax = fig.gca(projection='3d')
+    fig.tight_layout()
+    fig.subplots_adjust(left=0.20, bottom=0.15)
+    
+    ax.grid(grid)
+    ax.set_title(title)
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+    ax.get_xaxis().set_ticks([])
+    ax.get_yaxis().set_ticks([])
+    ax.set_zticks([])
+    ax.view_init(elev=45.0, azim=45.0)
+    ax.axis([-1.0, 1.0, -1.0, 1.0])
+    ax.set_zlim(-1.0, 1.0)
+    
+    # See: http://stackoverflow.com/questions/15042129/changing-position-of-vertical-z-axis-of-3d-plot-matplotlib
+    tmp_planes = ax.zaxis._PLANES
+    ax.zaxis._PLANES = ( tmp_planes[2], tmp_planes[3], 
+                         tmp_planes[0], tmp_planes[1],
+                         tmp_planes[4], tmp_planes[5])
+    
+    # Create arrows
+    arrows = []
+    labels = ['x', 'y', 'z']
+    colors = ['r', 'g', 'b']
+    vectors = np.eye(3)
+    for i in range(3):
+        x,y,z = vectors[:,i]
+        arrow = Arrow3D([0.0, x], [0.0, y], [0.0, z], mutation_scale=20, 
+                        lw=3, arrowstyle="-|>", color=colors[i], label=labels[i])
+        arrows.append(arrow)
+        ax.add_artist(arrow)
+    
+    proxies = [plt.Rectangle((0, 0), 1, 1, fc=c) for c in colors]
+    legend = ax.legend(proxies, labels, loc='upper right')
+        
+    def update(frame):
+        quaternion = frame
+        
+        # Convert from quaternion (w, x, y, z) to rotation matrix
+        R = quat2mat(quaternion)
+        
+        # Apply the rotation to the axis vectors (pointing in Y-axis)
+        directions = np.eye(3) # x, y, z as column vectors
+        vectors = np.dot(R, directions)
+        assert np.allclose(np.linalg.norm(vectors, 2, axis=0), np.ones((3,)), atol=1e-6)
+        
+        # Update existing plot
+        for i in range(3):
+            x,y,z = vectors[:,i]
+            arrows[i].set_data([0.0, x], [0.0, y], [0.0, z])
+                
+    ani = animation.FuncAnimation(fig, update, frames=frames, blit=True)
+    ani.save(filename, dpi=100, writer=writer)
+    plt.close(fig)
             
-def exportTimeserieAsVideo(frames, fs, filename, title, labels, ylim=None, windowSize=None, grid=False):
+def export3DSensorFramesAsVideo(frames, fs, filename, title, labels, ylim=None, windowSize=None, grid=False, legend=['x-axis', 'y-axis', 'z-axis']):
             
     # Create the video file writer
     writer = animation.FFMpegWriter(fps=fs, codec='libx264')
@@ -82,7 +180,7 @@ def exportTimeserieAsVideo(frames, fs, filename, title, labels, ylim=None, windo
     lines.append(ax.plot(xdata,ydata,'-g'))
     lines.append(ax.plot(xdata,ydata,'-b'))
         
-    ax.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
+    ax.legend(legend, loc='upper left')
         
     ymax = 0.0
     data = np.zeros((windowSize, 3))
@@ -105,7 +203,110 @@ def exportTimeserieAsVideo(frames, fs, filename, title, labels, ylim=None, windo
     ani = animation.FuncAnimation(fig, update, frames=frames, blit=True)
     ani.save(filename, dpi=100, writer=writer)
     plt.close(fig)
+
+def export2DSensorFramesAsVideo(frames, fs, filename, title, labels, ylim=None, windowSize=None, grid=False, legend=['x-axis', 'y-axis']):
             
+    # Create the video file writer
+    writer = animation.FFMpegWriter(fps=fs, codec='libx264')
+    
+    fig = plt.figure(figsize=(5,4), facecolor='white', frameon=False)
+    ax = fig.add_subplot(111)
+    fig.tight_layout()
+    fig.subplots_adjust(left=0.20, bottom=0.15)
+    
+    if windowSize is None:
+        windowSize = int(2*fs)
+    
+    xlabel, ylabel = labels
+    ax.grid(grid)
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    
+    if ylim is not None:
+        ax.axis([-windowSize/fs, 0.0, ylim[0], ylim[1]])
+    
+    xdata=-np.arange(windowSize)[::-1]/float(fs)
+    ydata=np.zeros(windowSize)
+    lines = []
+    lines.append(ax.plot(xdata,ydata,'-r'))
+    lines.append(ax.plot(xdata,ydata,'-g'))
+        
+    ax.legend(legend, loc='upper left')
+        
+    ymax = 0.0
+    data = np.zeros((windowSize, 2))
+    def update(frame):
+        # Update buffer
+        data[0:-1:,:] = data[1::,:]
+        data[-1,:] = frame
+        
+        # Update existing line plots
+        for i in range(2):
+            ydata=np.array(data[:,i])
+            lines[i][0].set_data(xdata, ydata)
+            
+        if ylim is None:
+            cmax = np.max(np.abs(data))
+            if cmax > ymax:
+                ymax = cmax
+            ax.axis([-windowSize/fs, 0.0, -ymax, ymax])
+                
+    ani = animation.FuncAnimation(fig, update, frames=frames, blit=True)
+    ani.save(filename, dpi=100, writer=writer)
+    plt.close(fig)
+
+def processPosition(dataset, outDirPath):
+    group = 'odometry'
+    name = 'position'
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    # TODO: implement
+            
+def processOrientation(dataset, outDirPath):
+    group = 'imu'
+    name = 'orientation'
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    title = 'Orientation'
+    exportQuaternionFramesAsVideo(raw, fs, outputVideoFile, title, grid=False)
+    
+    
+def processMotors(dataset, outDirPath):
+    group = 'motors'
+    name = 'speed'
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    title = 'Motor velocity'
+    labels = ['Time [sec]', "Motor velocity [mm/s]"]
+    ylim=[-250, 250]
+    legend = ['left', 'right']
+    export2DSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend)
+    
 def processImu(dataset, outDirPath):
     group = 'imu'
     names = ['angular_velocity', 'linear_acceleration', 'magnetic_field']
@@ -135,7 +336,7 @@ def processImu(dataset, outDirPath):
             raw *= 1e6 # Convert from T to uT
             ylim=[-50.0, 50.0]
         
-        exportTimeserieAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False)
+        export3DSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False)
         
 def processAudio(dataset, outDirPath, fs=16000, tolerance=0.25):
     group = 'audio'
@@ -153,7 +354,7 @@ def processAudio(dataset, outDirPath, fs=16000, tolerance=0.25):
         audioLength = raw.shape[0] * raw.shape[1] / float(fs)
         referenceLength = clock[-1] + raw.shape[1] / float(fs)
         if not np.allclose(audioLength, referenceLength, atol=tolerance):
-            raise Exception('Audio clock is incoherent: audio length is %f sec, but clock says %f sec' % (audioLength, referenceLength))
+            logger.warn('Audio clock is incoherent: audio length is %f sec, but clock says %f sec' % (audioLength, referenceLength))
 
         data.append(raw.flatten())
     data = np.array(data, dtype=np.int16)
@@ -179,11 +380,12 @@ def processVideo(dataset, outDirPath):
 
         # Decode first frame to check image size
         data = raw[0,:shape[0]]
-        img = cv2.imdecode(data, flags=cv2.CV_LOAD_IMAGE_COLOR)
+        img = cv2.imdecode(data, flags=1) # cv2.CV_LOAD_IMAGE_COLOR
         height, width, layers =  img.shape
 
         # Initialize video writer based on image size
-        codec = cv2.cv.CV_FOURCC(*'XVID')
+        # codec = cv2.cv.CV_FOURCC(*'XVID')
+        codec = cv2.VideoWriter_fourcc(*'XVID')
         writer = cv2.VideoWriter(outputVideoFile, codec, fps, (width, height))
         
         # Process each frame
@@ -192,7 +394,7 @@ def processVideo(dataset, outDirPath):
             data = raw[i,:shape[i]]
             
             # Decode raw JPEG data into image
-            img = cv2.imdecode(data, flags=cv2.CV_LOAD_IMAGE_COLOR)
+            img = cv2.imdecode(data, flags=1) # cv2.CV_LOAD_IMAGE_COLOR
             
             # Write frame
             writer.write(img)
@@ -220,6 +422,12 @@ def main(args=None):
         os.makedirs(outDirPath)
     
     with Hdf5Dataset(datasetPath, mode='r') as dataset:
+        
+        processPosition(dataset, outDirPath)
+        
+        processOrientation(dataset, outDirPath)
+        
+        processMotors(dataset, outDirPath)
         
         processVideo(dataset, outDirPath)
         

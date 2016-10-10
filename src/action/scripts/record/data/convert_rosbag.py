@@ -65,7 +65,7 @@ def main(args=None):
                 # Rotate right camera images (lossless)
                 if topic == '/video/right/compressed':
                     img = JPEGImage(blob=msg.data)
-                    rotatedImg = img.flip('vertical')
+                    rotatedImg = img.flip('vertical').flip('horizontal')
                     msg.data = rotatedImg.as_blob()
                     nbImagesProcessed += 1
             
