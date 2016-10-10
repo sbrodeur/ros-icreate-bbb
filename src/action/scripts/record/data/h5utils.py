@@ -196,6 +196,24 @@ class Hdf5Dataset:
                     clock = np.array(subgroup['clock'])
                     yield [subkey, key, clock]
 
+    def getStates(self, name, group=None):
+        
+        if group is not None:
+            g = self.h[group]
+        else:
+            g = self.h
+        g = g[name]
+            
+        assert 'raw' in g.keys()
+        raw = np.array(g['raw'])
+        clock = np.array(g['clock'])
+        if 'shape' in g.keys():
+            shape = np.array(g['shape'])
+        else:
+            shape = None
+            
+        return [name, group, raw, clock, shape]
+
     def getAllStates(self):
         
         # Loop over all groups at the root level
