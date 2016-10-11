@@ -33,6 +33,10 @@ import logging
 import numpy as np
 import rosbag
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 from tabulate import tabulate
 from optparse import OptionParser
 
@@ -49,6 +53,35 @@ def getStatisticsFromTimestamps(timestamps, dropThreshold=1.0):
     nbMsgDropped = np.count_nonzero(timeDiffs > mean*(1.0 + dropThreshold))
     
     return mean, variance, averageRate, nbMsgs, nbMsgDropped
+
+def saveHistogramsToFiles(topicTimestamps, dropThreshold, outputPath):
+    
+    outputPath = os.path.abspath(outputPath)
+    if not os.path.exists(outputPath):
+        logger.info('Creating output directory for histograms: %s' % (outputPath))
+        os.makedirs(outputPath)
+    
+    for topic, timestamps in topicTimestamps.iteritems():
+        name = topic[1:].replace("/", "-")
+        
+        # Compute time delays (in msec)
+        timeDiffs = (timestamps[1:] - timestamps[:-1]) * 1000.0
+        mean = np.mean(timeDiffs)
+        
+        fig = plt.figure(figsize=(8,6), facecolor='white')
+        
+        plt.title("Histogram for " + name)
+        plt.xlabel('Time delay between messages [ms]')
+        plt.ylabel('Message count')
+        plt.hist(timeDiffs, bins=500, color='k')
+        plt.axvline(mean, color='b')
+        plt.axvline(mean + mean*dropThreshold, color='r')
+        plt.axvline(mean - mean*dropThreshold, color='r')
+        
+        filename = os.path.join(outputPath, name + '.png')
+        logger.info('Saving histogram figure to file: %s' % (filename))
+        plt.savefig(filename, dpi=100)
+        plt.close(fig)
 
 def getTabulatedStatistics(topicTimestamps, dropThreshold):
 
@@ -111,6 +144,9 @@ def main(args=None):
     parser.add_option("-c", "--use-rosbag-time",
                       action="store_true", dest="useRosbagTime", default=False,
                       help="Use rosbag time instead of capture time")
+    parser.add_option("-g", "--save-histograms",
+                      action="store_true", dest="saveHistograms", default=False,
+                      help="Specify to save the histograms as images")
     parser.add_option("-t", "--drop-threshold", dest="dropThreshold", type='float', default=1.0,
                       help='Specify the threshold to use for detecting dropped messages')
     (options, args) = parser.parse_args()
@@ -118,6 +154,9 @@ def main(args=None):
     if not options.input:
         parser.error("Please specify input rosbag file with -i ")
     
+    if options.saveHistograms and not options.output:
+        parser.error("Please specify an output file with -o when exporting histograms ")
+        
     inputRosbagPath = os.path.abspath(options.input)
     logger.info('Using input rosbag file: %s' % (inputRosbagPath))
 
@@ -132,6 +171,10 @@ def main(args=None):
     
     # Get timestamps from the rosbag
     topicTimestamps = getAllTopicTimestamps(inputRosbagPath, ignoreList, options.useRosbagTime)
+    
+    if options.saveHistograms and options.output:
+        outputPath = outputStatsFilePath + '.histograms'
+        saveHistogramsToFiles(topicTimestamps, options.dropThreshold, outputPath)
     
     # Print statistics to string
     str = getTabulatedStatistics(topicTimestamps, options.dropThreshold)

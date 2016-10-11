@@ -5,6 +5,14 @@ msg_gen/
 srv_gen/
 *~
 *.pyc
+*.bag
+*.rosbag
+*.stats
+*.log
+*.h5
+*.mp4
+*.avi
+*.csv
 .DS_STORE
 /.project
 /.pydevproject
