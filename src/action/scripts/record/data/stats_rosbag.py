@@ -31,9 +31,7 @@
 import os
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
 import rosbag
-import rospy
 
 from tabulate import tabulate
 from optparse import OptionParser
