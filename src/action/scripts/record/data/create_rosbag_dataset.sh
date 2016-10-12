@@ -7,12 +7,12 @@ IFS=$'\n';
 
 # Recursively loop through all bag files in the specified directory
 BAG_DIRECTORY=$1
-for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do 
+for bag in $(find ${BAG_DIRECTORY} -name '*.bag.raw'); do 
 	echo "Processing bag file ${bag}"
 	
 	INPUT_DATASET_FILE="${bag}"
 	OUTPUT_DATASET_FILE_BAG_PROC="${bag}.proc"
-	OUTPUT_DATASET_FILE_BAG="${bag%.bag}.rosbag"
+	OUTPUT_DATASET_FILE_BAG="${bag%.bag.raw}.bag"
 	
 	if [ -f $OUTPUT_DATASET_FILE_BAG ]; then
 		echo "Output dataset ${OUTPUT_DATASET_FILE_BAG} already found"
@@ -32,7 +32,7 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do
 	
 	echo "Compressing rosbag file ${OUTPUT_DATASET_FILE_BAG}"
 	rosbag compress --force --bz2 $OUTPUT_DATASET_FILE_BAG
-	rm -f ${OUTPUT_DATASET_FILE_BAG%.rosbag}.orig.rosbag
+	rm -f ${OUTPUT_DATASET_FILE_BAG%.bag}.orig.bag
 	
 	echo "Removing all dataset temporary files"
 	rm -f $OUTPUT_DATASET_FILE_BAG_PROC

@@ -438,7 +438,7 @@ def processVideo(dataset, outDirPath):
         logger.info('Writing to output video file %s' % (outputVideoFile))
 
         # Decode first frame to check image size
-        data = raw[0,:shape[0]]
+        data = raw[0,:shape[0,0]]
         img = cv2.imdecode(data, flags=1) # cv2.CV_LOAD_IMAGE_COLOR
         height, width, layers =  img.shape
 
@@ -453,7 +453,7 @@ def processVideo(dataset, outDirPath):
         startTime = time.time()
         nbFrames = len(raw)
         for i in range(nbFrames):
-            data = raw[i,:shape[i]]
+            data = raw[i,:shape[i,0]]
             
             # Decode raw JPEG data into image
             img = cv2.imdecode(data, flags=1) # cv2.CV_LOAD_IMAGE_COLOR
