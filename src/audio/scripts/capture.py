@@ -73,7 +73,7 @@ class AudioCapture():
  
         # Create publisher
         output = rospy.get_param('~output', 'audio' + '/' + self.name + '/raw')
-        self.pub = rospy.Publisher(output, AudioData, queue_size=1)
+        self.pub = rospy.Publisher(output, AudioData, queue_size=20)
  
     def close(self):
         self.stream.stop_stream()
