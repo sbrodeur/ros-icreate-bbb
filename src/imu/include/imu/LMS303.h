@@ -148,7 +148,7 @@ public:
 	int readFullSensorState();
 
 	int enableTempSensor();
-	int getTemperature();
+	float getTemperature();
 
 	int enableMagnetometer();
 	float getMagX() { return magX; }

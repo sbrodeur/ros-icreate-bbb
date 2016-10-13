@@ -117,20 +117,15 @@ int LMS303::enableTempSensor() {
 	return 0;
 }
 
-int LMS303::getTemperature() {
+float LMS303::getTemperature() {
 	// Read temperature registers directly into dataBuffer
 	// Datasheet is not clear, so temp conversion may be inaccurate.
 	// Not verified with negative temperatures;
 
 	short temp = dataBuffer[REG_TEMP_OUT_H];
-	temp = (temp << 8) | (dataBuffer[REG_TEMP_OUT_L]);
+	temp = (((temp << 8) | (dataBuffer[REG_TEMP_OUT_L])) >> 4);
 
-	// Mask MSBs appropriately to convert 12 bit 2s complement to 16 bit 2s complement
-	if(temp & 0x0800) temp |= 0x8000;
-	else temp &= 0x0FFF;
-
-	celsius = temp;
-
+	celsius = (float) temp / 8.0;
 	return celsius;
 }
 
