@@ -72,7 +72,7 @@ git clone https://github.com/sbrodeur/ros-icreate-bbb.git
 Create a symlink to the ROS distribution for the catkin workspace (here for ROS kinetic):
 ```
 cd ros-icreate-bbb
-ln /opt/ros/kinetic/share/catkin/cmake/toplevel.cmake <ROOT>/src/CMakeLists.txt
+ln -s /opt/ros/kinetic/share/catkin/cmake/toplevel.cmake src/CMakeLists.txt
 ```
 
 Compile workspace with catkin:
