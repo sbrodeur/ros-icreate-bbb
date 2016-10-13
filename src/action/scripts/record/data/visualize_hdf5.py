@@ -371,6 +371,62 @@ def exportSensorFramesAsVideo(frames, fs, filename, title, labels, ylim=None, wi
     
     plt.close(fig)
 
+
+def exportBatteryStatusFramesAsVideo(frames, fs, filename, title, labels=['Time [sec]', 'Status'], windowSize=None, downsampleRatio=1):
+    
+    ndim = frames.shape[1]
+    assert ndim <= 1
+            
+    # Create the video file writer
+    writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
+    
+    fig = plt.figure(figsize=(5,4), facecolor='white', frameon=False)
+    ax = fig.add_subplot(111)
+    fig.tight_layout()
+    fig.subplots_adjust(left=0.30, bottom=0.15)
+    
+    if windowSize is None:
+        windowSize = int(2*fs)
+    
+    xlabel, ylabel = labels
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    
+    ax.axis([-windowSize/fs, 0.0, -0.1, 4.1])
+    plt.yticks([0.0, 1.0, 2.0, 3.0, 4.0], ['Unknown', 'Charging', 'Discharging', 'Not charging', 'Full'])
+    
+    xdata=-np.arange(windowSize)[::-1]/float(fs)
+    ydata=np.zeros(windowSize)
+    lines = []
+    colors = ['-r', '-g', '-b', 'c', 'm', 'y']
+    for i in range(ndim):
+        lines.append(ax.plot(xdata,ydata, colors[i])[0])
+        
+    ymax = 0.0
+    data = np.zeros((windowSize, ndim))
+    
+    startTime = time.time()
+    with writer.saving(fig, filename, 100):
+        for n, frame in enumerate(frames):
+            # Update buffer
+            data[0:-1:,:] = data[1::,:]
+            data[-1,:] = frame
+            
+            if n % int(downsampleRatio) == 0:
+                
+                # Update existing line plots
+                for i in range(ndim):
+                    ydata=np.array(data[:,i])
+                    lines[i].set_data(xdata, ydata)
+                    
+                writer.grab_frame()
+    
+    elapsedTime = time.time() - startTime
+    logger.info('FPS = %f frame/sec' % (len(frames)/elapsedTime))
+    
+    plt.close(fig)
+
 def processIRrange(dataset, outDirPath, downsampleRatio=1):
 
     group = 'collision'
@@ -468,6 +524,78 @@ def processBattery(dataset, outDirPath, downsampleRatio=1):
     legend = ['Voltage', 'Current']
     
     exportBatteryFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+
+def processBatteryCharge(dataset, outDirPath, downsampleRatio=1):
+
+    group = 'battery'
+    name = 'charge'
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    # Select only the subset related to battery charge
+    raw = np.array(raw[:,[2,]], dtype=np.float32)
+
+    title = 'Battery charge'
+    labels = ['Time [sec]', "Charge [mAh]"]
+    ylim=[0.0, 4000.0]
+    legend = None
+    
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+
+
+def processBatteryPercentage(dataset, outDirPath, downsampleRatio=1):
+
+    group = 'battery'
+    name = 'charge'
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    name = 'charge-percentage'
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    # Select only the subset related to battery percentage
+    raw = np.array(raw[:,[5,]], dtype=np.float32) * 100.0
+
+    title = 'Battery percentage'
+    labels = ['Time [sec]', "Charge [%]"]
+    ylim=[0.0, 105.0]
+    legend = None
+    
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+
+def processBatteryStatus(dataset, outDirPath, downsampleRatio=1):
+
+    group = 'battery'
+    name = 'status'
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    # Select only the subset related to battery status
+    raw = np.array(raw[:,[0,]], dtype=np.int)
+
+    title = 'Battery status'
+    labels = ['Time [sec]', "Status"]
+    exportBatteryStatusFramesAsVideo(raw, fs, outputVideoFile, title, labels, windowSize=int(2*fs), downsampleRatio=downsampleRatio)
+
 
 def processPosition(dataset, outDirPath, downsampleRatio=1):
     group = 'odometry'
@@ -811,6 +939,12 @@ def process(name, datasetPath, outDirPath, downsampleRatio=1):
             processContacts(dataset, outDirPath, name, downsampleRatio)
         elif name == 'battery':
             processBattery(dataset, outDirPath, downsampleRatio)
+        elif name == 'battery-charge':
+            processBatteryCharge(dataset, outDirPath, downsampleRatio)
+        elif name == 'battery-percentage':
+            processBatteryPercentage(dataset, outDirPath, downsampleRatio)
+        elif name == 'battery-status':
+            processBatteryStatus(dataset, outDirPath, downsampleRatio)
         elif name == 'audio':
             processAudio(dataset, outDirPath)
         elif name == 'audio-signal-left':
@@ -864,7 +998,7 @@ def main(args=None):
     defaultNames = ['orientation-raw', 'imu-accel-raw', 'imu-gyro-raw', 'twist_linear', 'twist_angular','imu-temperature',
                     'position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
                     'contact','cliff','wheel-drop','range', 'imu-accel', 'imu-gyro', 'imu-mag',
-                    'motors', 'video', 'audio']
+                    'motors', 'video', 'audio', 'battery-charge', 'battery-percentage', 'battery-status']
     
     if options.sensors is not None:
         names = str(options.sensors).split(',')
@@ -876,8 +1010,7 @@ def main(args=None):
     logger.info('Exporting videos for those sensors: %s' % (','.join(names)))
     
     for name in names:
-        process(name, datasetPath, outDirPath, options.downsampleRatio)
-        #p.apply_async(process, args=(name, datasetPath, outDirPath, options.downsampleRatio))
+        p.apply_async(process, args=(name, datasetPath, outDirPath, options.downsampleRatio))
     p.close()
     p.join()
     
