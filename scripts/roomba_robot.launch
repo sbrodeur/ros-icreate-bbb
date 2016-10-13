@@ -33,7 +33,7 @@
     <param name="device" value="0" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
-    <param name="buffer_size" value="2048" />
+    <param name="buffer_size" value="512" />
     <param name="mic_name" value="left"/>
     <param name="output" value="/audio/left/raw" />
 </node>
@@ -42,7 +42,7 @@
     <param name="device" value="1" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
-    <param name="buffer_size" value="2048" />
+    <param name="buffer_size" value="512" />
     <param name="mic_name" value="right"/>
     <param name="output" value="/audio/right/raw" />
 </node>

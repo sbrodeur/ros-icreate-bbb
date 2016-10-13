@@ -9,7 +9,7 @@ width
 height
 480
 
-[narrow_stereo/left]
+[left]
 
 camera matrix
 517.338145 0.000000 309.358050
@@ -40,7 +40,7 @@ width
 height
 480
 
-[narrow_stereo/right]
+[right]
 
 camera matrix
 525.713579 0.000000 325.519749
