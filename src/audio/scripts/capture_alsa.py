@@ -47,7 +47,11 @@ class AudioCapture():
         self.rate = rate
         self.bufferSize = bufferSize
 
-        recorder = alsaaudio.PCM(type=alsaaudio.PCM_CAPTURE, mode=alsaaudio.PCM_NORMAL) #"hw:%d,0" % name
+        # Print all devices information
+        for devIndex, devName in enumerate(alsaaudio.pcms()):
+            print 'Found device: %s , index %d' % (devName, devIndex)
+        
+        recorder = alsaaudio.PCM(type=alsaaudio.PCM_CAPTURE, mode=alsaaudio.PCM_NORMAL, device=device)
         recorder.setchannels(channels)
         recorder.setrate(rate)
         recorder.setformat(alsaaudio.PCM_FORMAT_S16_LE)
@@ -59,18 +63,17 @@ class AudioCapture():
         self.pub = rospy.Publisher(output, AudioData, queue_size=1)
     
     def close(self):
-        self.stream.stop_stream()
-        self.stream.close()
-        self.p.terminate()
+        self.recorder.close()
         
     def spinOnce(self):
     	try:
             # Read a frame
             count, frame = self.recorder.read()
-            assert count == self.bufferSize
+            if count != self.bufferSize:
+                raise Exception('Received too few data samples when reading audio device: %d, but expected %d' % (count, self.bufferSize))
             data = array.array('h', frame)
             
-            # Deinterleave channel data        
+            # Deinterleave channel data
             chanData = []
             for i in range(self.channels):
                 chanData.append(data[i::self.channels])
@@ -86,8 +89,8 @@ class AudioCapture():
     		                               MultiArrayDimension('samples', samples, samples)], 0)
             msg.data = list(itertools.chain.from_iterable(chanData))
             self.pub.publish(msg)
-        except IOError:
-            rospy.logerr('Unable to read audio stream!')
+        except Exception as e:
+            rospy.logerr("Error(%d): %s" % (e.errno, e.strerror))
 
     def spin(self):
         while not rospy.is_shutdown():
@@ -98,7 +101,7 @@ if __name__ == '__main__':
     capture = None
     try:
         rospy.init_node('audio_capture', log_level=rospy.INFO, anonymous=True)
-        device = rospy.get_param('~device', 0)
+        device = rospy.get_param('~device', "default")
         rate = rospy.get_param('~rate', 16000)
         channels = rospy.get_param('~channels', 1)
         name = rospy.get_param('~mic_name', 'default')
