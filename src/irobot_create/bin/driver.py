@@ -136,20 +136,20 @@ class CreateDriver:
         elapsed = float(elapsed.seconds) + elapsed.microseconds/1000000.
         d = self.create.d_distance / 1000.
         th = self.create.d_angle*pi/180
-        dx = d / elapsed
+        dy = d / elapsed
         dth = th / elapsed
 
         if (d != 0):
-            x = cos(th)*d
-            y = -sin(th)*d
-            self.x = self.x + (cos(self.th)*x - sin(self.th)*y)
-            self.y = self.y + (sin(self.th)*x + cos(self.th)*y)
+            y = cos(th)*d
+            x = -sin(th)*d
+            self.y = self.y + (cos(self.th)*y - sin(self.th)*x)
+            self.x = self.x + (sin(self.th)*y + cos(self.th)*x)
 
         if (th != 0):
             self.th = self.th + th
 
         quaternion = Quaternion()
-        quaternion.x = 0.0 
+        quaternion.x = 0.0
         quaternion.y = 0.0
         quaternion.z = sin(self.th/2)
         quaternion.w = cos(self.th/2)
@@ -172,8 +172,8 @@ class CreateDriver:
         odom.pose.pose.orientation = quaternion
 
         odom.child_frame_id = "base_link"
-        odom.twist.twist.linear.x = dx
-        odom.twist.twist.linear.y = 0
+        odom.twist.twist.linear.x = 0
+        odom.twist.twist.linear.y = dy
         odom.twist.twist.angular.z = dth
 
         self.odomPub.publish(odom)

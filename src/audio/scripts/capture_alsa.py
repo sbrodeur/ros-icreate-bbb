@@ -71,6 +71,8 @@ class AudioCapture():
             count, frame = self.recorder.read()
             if count != self.bufferSize:
                 raise Exception('Received too few data samples when reading audio device: %d, but expected %d' % (count, self.bufferSize))
+            # NOTE: array uses native byte order. It may be better to use struct and specify that the data is little-endian.
+            #       struct.unpack_from('<h', data)
             data = array.array('h', frame)
             
             # Deinterleave channel data
@@ -89,6 +91,8 @@ class AudioCapture():
     		                               MultiArrayDimension('samples', samples, samples)], 0)
             msg.data = list(itertools.chain.from_iterable(chanData))
             self.pub.publish(msg)
+        except alsaaudio.ALSAAudioError as e:
+            rospy.logerr("ALSA audio error(%d): %s" % (e.errno, e.strerror))
         except Exception as e:
             rospy.logerr("Error(%d): %s" % (e.errno, e.strerror))
 

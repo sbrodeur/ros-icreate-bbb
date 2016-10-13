@@ -143,9 +143,9 @@ def exportQuaternionFramesAsVideo(frames, fs, filename, title, grid=False, downs
             
             if n % int(downsampleRatio) == 0:
                 
-                quaternion = frame
-                
                 # Convert from quaternion (w, x, y, z) to rotation matrix
+                x,y,z,w = frame
+                quaternion = np.array([w,x,y,z])
                 R = quat2mat(quaternion)
                 
                 # Apply the rotation to the axis vectors (pointing in Y-axis)
@@ -166,8 +166,8 @@ def exportQuaternionFramesAsVideo(frames, fs, filename, title, grid=False, downs
     plt.close(fig)
 
 
-def exportPositionFramesAsVideo(frames, fs, filename, title, grid=False, downsampleRatio=1):
-    # TODO: add arrow giving orientation (as quaternion)
+def exportPositionFramesAsVideo(framesPos, framesOri, fs, filename, title, grid=False, downsampleRatio=1):
+    assert len(framesPos) == len(framesOri)
 
     # Create the video file writer
     writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
@@ -186,13 +186,13 @@ def exportPositionFramesAsVideo(frames, fs, filename, title, grid=False, downsam
     ax.set_ylabel("y [meter]")
     ax.axis([-1.0, 1.0, -1.0, 1.0])
     
-    windowsSize = 1000
+    windowsSize = 10000
     startTime = time.time()
     with writer.saving(fig, filename, 100):
 
         nbPoints = 0
         data = np.zeros((windowsSize, 2), dtype=np.float32)
-        for n, position in enumerate(frames):
+        for n, (position, orientation) in enumerate(zip(framesPos,framesOri)):
             
             # Update buffer
             data[0:-1:,:] = data[1::,:]
@@ -200,18 +200,38 @@ def exportPositionFramesAsVideo(frames, fs, filename, title, grid=False, downsam
             if nbPoints < windowsSize:
                 nbPoints += 1
                 
+            # Convert from quaternion (w, x, y, z) to rotation matrix
+            x,y,z,w = orientation
+            quaternion = np.array([w,x,y,z])
+            R = quat2mat(quaternion)
+            
+            # Apply the rotation to the vector pointing in the forward direction (y-axis)
+            direction = np.array([0.0, 1.0, 0.0])
+            vector = np.dot(R, direction)
+            vector /= np.linalg.norm(vector, 2)
+            
             if n % int(downsampleRatio) == 0:
                 cdata = data[windowsSize-nbPoints:,:]
                 scatPast.set_offsets(cdata)
                 scatCur.set_offsets(cdata[-1,:])
                 
-                ax.set_xlim([0.9 * np.min(cdata[:,0]), 1.1 * np.max(cdata[:,0])])
-                ax.set_ylim([0.9 * np.min(cdata[:,1]), 1.1 * np.max(cdata[:,1])])
+                border = 0.5
+                xlim = np.array([np.min(cdata[:,0])-border, np.max(cdata[:,0])+border])
+                ylim = np.array([np.min(cdata[:,1])-border, np.max(cdata[:,1])+border])
+                scale = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0]])
+                ax.set_xlim(xlim)
+                ax.set_ylim(ylim)
+
+                x, y = cdata[-1,0], cdata[-1,1]
+                dx, dy = vector[0] * 0.05 * scale, vector[1] * 0.05 * scale
+                lines = ax.plot([x, x+dx], [y, y+dy], c='r')
                 
                 writer.grab_frame()
+                
+                lines.pop(0).remove()
     
     elapsedTime = time.time() - startTime
-    logger.info('FPS = %f frame/sec' % (len(frames)/elapsedTime))
+    logger.info('FPS = %f frame/sec' % (len(framesPos)/elapsedTime))
     
     plt.close(fig)
 
@@ -452,19 +472,25 @@ def processBattery(dataset, outDirPath, downsampleRatio=1):
 def processPosition(dataset, outDirPath, downsampleRatio=1):
     group = 'odometry'
     name = 'position'
-    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    [_, _, rawPos, clock, _] = dataset.getStates(name, group)
     
     # Estimate sampling rate from clock
     fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
     logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
-    windowSize = 2*fs
+    
+    [_, _, rawOri, clock, _] = dataset.getStates('orientation', group)
 
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, 'orientation', group))
+    windowSize = 2*fs
+    
     outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
     logger.info('Writing to output video file %s' % (outputVideoFile))
 
-    title = 'Odometry position (x-y)'
-    exportPositionFramesAsVideo(raw, fs, outputVideoFile, title, grid=True, downsampleRatio=downsampleRatio)
-            
+    title = 'Odometry position and orientation (x-y)'
+    exportPositionFramesAsVideo(rawPos, rawOri, fs, outputVideoFile, title, grid=True, downsampleRatio=downsampleRatio)
+    
 def processOrientation(dataset, outDirPath, downsampleRatio=1):
     group = 'imu'
     name = 'orientation'
@@ -718,7 +744,7 @@ def main(args=None):
     
     logger.info('Using a downsampling ratio of %d' % (options.downsampleRatio))
     
-    names = ['contact','position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
+    names = ['position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
              'contact','cliff','wheel-drop','range', 'imu-accel', 'imu-gyro', 'imu-mag',
              'motors', 'video', 'audio']
     for name in names:
