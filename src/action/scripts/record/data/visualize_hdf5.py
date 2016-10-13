@@ -491,9 +491,14 @@ def processPosition(dataset, outDirPath, downsampleRatio=1):
     title = 'Odometry position and orientation (x-y)'
     exportPositionFramesAsVideo(rawPos, rawOri, fs, outputVideoFile, title, grid=True, downsampleRatio=downsampleRatio)
     
-def processOrientation(dataset, outDirPath, downsampleRatio=1):
+def processOrientation(dataset, outDirPath, downsampleRatio=1, rawValues=False):
     group = 'imu'
-    name = 'orientation'
+    
+    if rawValues:
+        name = 'orientation_raw'
+    else:
+        name = 'orientation'
+    
     [_, _, raw, clock, shape] = dataset.getStates(name, group)
     
     # Estimate sampling rate from clock
@@ -565,6 +570,40 @@ def processImu(dataset, outDirPath, name=None, downsampleRatio=1):
         
         exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
         
+def processImuRaw(dataset, outDirPath, name=None, downsampleRatio=1):
+    group = 'imu'
+    names = {'imu-gyro-raw':'angular_velocity_raw', 'imu-accel-raw':'linear_acceleration_raw'}
+
+    # Convert dictionary to list
+    if name is not None:
+        names = [names[name],]
+    else:
+        names = names.items()
+        
+    for name in names:
+        [_, _, raw, clock, shape] = dataset.getStates(name, group)
+        
+        # Estimate sampling rate from clock
+        fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+        logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+        windowSize = 2*fs
+
+        outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+        logger.info('Writing to output video file %s' % (outputVideoFile))
+
+        if name == 'angular_velocity_raw':
+            title = 'Angular velocity (raw)'
+            labels = ['Time [sec]', "Angular velocity [rad/s]"]
+            ylim=[-2.0, 2.0]
+        elif name == 'linear_acceleration_raw':
+            title = 'Linear acceleration (raw)'
+            labels = ['Time [sec]', "Linear acceleration [m/s^2]"]
+            ylim=[-12.0, 12.0]
+        legend = ['x-axis', 'y-axis', 'z-axis']
+        
+        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        
+        
 def processAudioSignal(dataset, outDirPath, name=None, fs=16000, tolerance=0.25, downsampleRatio=1.0):
     group = 'audio'
     names = {'audio-signal-left':'left', 'audio-signal-right':'right'}
@@ -605,6 +644,70 @@ def processAudioSignal(dataset, outDirPath, name=None, fs=16000, tolerance=0.25,
         legend = None
         
         exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        
+def processTemperature(dataset, outDirPath, downsampleRatio=1.0):
+    group = 'imu'
+    name = 'temperature'
+
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    title = 'IMU temperature'
+    labels = ['Time [sec]', "Temperature [celcius]"]
+    ylim=[15.0, 50.0]
+    legend = None
+    
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        
+def processOdometryTwistAngular(dataset, outDirPath, downsampleRatio):
+    group = 'odometry'
+    name = 'twist_angular'
+
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    title = 'Odometry angular velocity'
+    labels = ['Time [sec]', "Angular velocity [rad/s]"]
+    ylim=[-2.0, 2.0]
+    legend = ['x-axis', 'y-axis', 'z-axis']
+
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        
+
+def processOdometryTwistLinear(dataset, outDirPath, downsampleRatio):
+    group = 'odometry'
+    name = 'twist_linear'
+
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    title = 'Odometry linear velocity'
+    labels = ['Time [sec]', "Linear velocity [m/s]"]
+    ylim=[-0.5, 0.5]
+    legend = ['x-axis', 'y-axis', 'z-axis']
+
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
         
 def processAudio(dataset, outDirPath, fs=16000, tolerance=0.25):
     group = 'audio'
@@ -682,6 +785,8 @@ def process(name, datasetPath, outDirPath, downsampleRatio=1):
             processPosition(dataset, outDirPath, downsampleRatio)
         elif name == 'orientation':
             processOrientation(dataset, outDirPath, downsampleRatio)
+        elif name == 'orientation-raw':
+            processOrientation(dataset, outDirPath, downsampleRatio, rawValues=True)
         elif name == 'motors':
             processMotors(dataset, outDirPath, downsampleRatio)
         elif name == 'video':
@@ -692,6 +797,10 @@ def process(name, datasetPath, outDirPath, downsampleRatio=1):
             processImu(dataset, outDirPath, name, downsampleRatio)
         elif name == 'imu-mag':
             processImu(dataset, outDirPath, name, downsampleRatio)
+        elif name == 'imu-accel-raw':
+            processImuRaw(dataset, outDirPath, name, downsampleRatio)
+        elif name == 'imu-gyro-raw':
+            processImuRaw(dataset, outDirPath, name, downsampleRatio)
         elif name == 'range':
             processIRrange(dataset, outDirPath, downsampleRatio)
         elif name == 'contact':
@@ -708,6 +817,12 @@ def process(name, datasetPath, outDirPath, downsampleRatio=1):
             processAudioSignal(dataset, outDirPath, name)
         elif name == 'audio-signal-right':
             processAudioSignal(dataset, outDirPath, name)
+        elif name == 'twist_linear':
+            processOdometryTwistLinear(dataset, outDirPath, downsampleRatio)
+        elif name == 'twist_angular':
+            processOdometryTwistAngular(dataset, outDirPath, downsampleRatio)
+        elif name == 'imu-temperature':
+            processTemperature(dataset, outDirPath, downsampleRatio)
         else:
             raise Exception('Unknown name: %s' % (name))
 
@@ -722,6 +837,8 @@ def main(args=None):
                       help='Specify the number of parallel processes to spawn')
     parser.add_option("-d", "--downsample-ratio", dest="downsampleRatio", type='int', default=1,
                       help='Specify the downsampling ratio')
+    parser.add_option("-t", "--sensors", dest="sensors", default=None,
+                      help='Specify the sensors from which to export videos')
     (options,args) = parser.parse_args(args=args)
 
     datasetPath = os.path.abspath(options.input)
@@ -744,9 +861,20 @@ def main(args=None):
     
     logger.info('Using a downsampling ratio of %d' % (options.downsampleRatio))
     
-    names = ['position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
-             'contact','cliff','wheel-drop','range', 'imu-accel', 'imu-gyro', 'imu-mag',
-             'motors', 'video', 'audio']
+    defaultNames = ['orientation-raw', 'imu-accel-raw', 'imu-gyro-raw', 'twist_linear', 'twist_angular','imu-temperature',
+                    'position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
+                    'contact','cliff','wheel-drop','range', 'imu-accel', 'imu-gyro', 'imu-mag',
+                    'motors', 'video', 'audio']
+    
+    if options.sensors is not None:
+        names = str(options.sensors).split(',')
+        for name in names:
+            if name not in defaultNames:
+                raise Exception('Unknown sensor name: %s' % (name))
+    else:
+        names = defaultNames
+    logger.info('Exporting videos for those sensors: %s' % (','.join(names)))
+    
     for name in names:
         process(name, datasetPath, outDirPath, options.downsampleRatio)
         #p.apply_async(process, args=(name, datasetPath, outDirPath, options.downsampleRatio))
