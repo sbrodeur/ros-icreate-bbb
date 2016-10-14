@@ -4,7 +4,7 @@ project(imu)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs geometry_msgs)
+find_package(catkin REQUIRED COMPONENTS roscpp rospy std_msgs sensor_msgs geometry_msgs)
 
 ## pkg-config libraries
 find_package(PkgConfig REQUIRED)
@@ -47,6 +47,11 @@ target_link_libraries(${PROJECT_NAME}_capture
 #############
 ## Install ##
 #############
+
+catkin_install_python(PROGRAMS
+  nodes/captureBMP.py
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
 
 ## Mark executables and/or libraries for installation
 install(TARGETS ${PROJECT_NAME}_capture ${PROJECT_NAME}
