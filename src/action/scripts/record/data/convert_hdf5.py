@@ -121,12 +121,12 @@ class StateSaver(object):
         
         if topic == '/video/left/compressed':
             state = np.fromstring(msg.data, dtype=np.uint8)
-            self.outHdf5.addState('left', state, t, group='video', variableShape=True, maxShape=(32768,))
+            self.outHdf5.addState('left', state, t, group='video', variableShape=True, maxShape=(40000,))
             self.countProcessed += 1
         
         if topic == '/video/right/compressed':
             state = np.fromstring(msg.data, dtype=np.uint8)
-            self.outHdf5.addState('right', state, t, group='video', variableShape=True, maxShape=(32768,))
+            self.outHdf5.addState('right', state, t, group='video', variableShape=True, maxShape=(40000,))
             self.countProcessed += 1
             
         if topic == '/audio/left/raw':
