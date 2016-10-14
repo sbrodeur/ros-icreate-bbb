@@ -54,6 +54,15 @@
     <param name="rate" value="20.0" />
 </node>
 
+<node name="imu_bmp" pkg="imu" type="captureBMP.py" output="screen" >
+    <param name="deviceLocation" value="/sys/bus/i2c/drivers/bmp085/2-0077" />        
+    <param name="tempProbe" value="/temp0_input" />
+    <param name="presProbe" value="/pressure0_input" />
+    <param name="rateHz" value="20" />
+    <param name="outputTemp" value="/imu/temp" />
+    <param name="outputPres" value="/imu/pres" />
+</node>
+
 <node name="madgwick" pkg="imu_filter_madgwick" type="imu_filter_node" output="screen" >
     <param name="world_frame" value="enu"/>
     <param name="use_mag" value="True"/>
