@@ -37,9 +37,16 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 ## Declare a cpp executable
-add_executable(${PROJECT_NAME}_capture nodes/capture.cpp)
+add_executable(${PROJECT_NAME}_capture nodes/capture.cpp )
 add_dependencies(${PROJECT_NAME}_capture ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME}_capture
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
+add_executable(${PROJECT_NAME}_captureBMP nodes/captureBMP.cpp)
+add_dependencies(${PROJECT_NAME}_captureBMP ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_captureBMP
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
@@ -55,6 +62,11 @@ catkin_install_python(PROGRAMS
 
 ## Mark executables and/or libraries for installation
 install(TARGETS ${PROJECT_NAME}_capture ${PROJECT_NAME}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+install(TARGETS ${PROJECT_NAME}_captureBMP ${PROJECT_NAME}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
