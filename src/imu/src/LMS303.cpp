@@ -122,10 +122,24 @@ float LMS303::getTemperature() {
 	// Datasheet is not clear, so temp conversion may be inaccurate.
 	// Not verified with negative temperatures;
 
-	short temp = dataBuffer[REG_TEMP_OUT_H];
-	temp = (((temp << 8) | (dataBuffer[REG_TEMP_OUT_L])) >> 4);
+	short temp = ((dataBuffer[REG_TEMP_OUT_H] << 8) | (dataBuffer[REG_TEMP_OUT_L])) ;
+    
+    //type short is 16bit 2s comp and the temp is given in 12bit 2s comp
+    //we must mask the MSB, flip the bits if needed and remember the sign
+    // to convert correctly
+    float sign = 1.0;
 
-	celsius = (float) temp / 8.0;
+    if(temp & 0x0800) {
+        temp = temp ^ 0x0FFF;
+        sign = -1.0;
+    }
+    else
+    {
+        temp &= 0x0FFF;
+    }
+
+    //Factory calibrated to 25 celsius
+	celsius = sign*(float)(temp / 8.0) + 25;
 	return celsius;
 }
 
