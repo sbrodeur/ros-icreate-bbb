@@ -29,8 +29,8 @@
     <param name="camera_info_url" value="package://camera/calibration/right_calibration.yaml" />
 </node>
 
-<node name="mic1" pkg="audio" type="capture.py" output="screen">
-    <param name="device" value="0" />
+<node name="mic1" pkg="audio" type="capture_alsa.py" output="screen">
+    <param name="device" value="front:CARD=Q9000,DEV=0" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
     <param name="buffer_size" value="512" />
@@ -38,8 +38,8 @@
     <param name="output" value="/audio/left/raw" />
 </node>
 
-<node name="mic2" pkg="audio" type="capture.py" output="screen">
-    <param name="device" value="1" />
+<node name="mic2" pkg="audio" type="capture_alsa.py" output="screen">
+    <param name="device" value="front:CARD=Q9000_1,DEV=0" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
     <param name="buffer_size" value="512" />
@@ -52,6 +52,15 @@
     <param name="outputMag" value="/imu/mag" />
     <param name="outputTemp" value="/imu/temp" />
     <param name="rate" value="20.0" />
+</node>
+
+<node name="imu_bmp" pkg="imu" type="captureBMP.py" output="screen" >
+    <param name="deviceLocation" value="/sys/bus/i2c/drivers/bmp085/2-0077" />        
+    <param name="tempProbe" value="/temp0_input" />
+    <param name="presProbe" value="/pressure0_input" />
+    <param name="rateHz" value="20" />
+    <param name="outputTemp" value="/imu/temp" />
+    <param name="outputPres" value="/imu/pres" />
 </node>
 
 <node name="madgwick" pkg="imu_filter_madgwick" type="imu_filter_node" output="screen" >
@@ -69,7 +78,7 @@
 
 <node name="joystick" pkg="action" type="remote_control.py" output="screen" >
     <param name="~joystick_dev" value="/dev/input/js0"/>
-    <param name="~rosbag_loc" value="/home/work/rosbags"/>
+    <param name="~rosbag_loc" value="/root/work/rosbags"/>
 </node>
 
 

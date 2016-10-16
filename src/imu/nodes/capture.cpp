@@ -64,7 +64,7 @@ class CaptureNode {
         CaptureNode() :
             node_("~"), gyro_(I2CBus, 0x6B),  lms303_(I2CBus, 0x1D){
 
-                gyro_.setGyroDataRate(DR_GYRO_100HZ);
+                gyro_.setGyroDataRate(DR_GYRO_800HZ);
                 gyro_.setGyroScale(SCALE_GYRO_245dps);
 
                 lms303_.setMagDataRate(DR_MAG_100HZ);
@@ -77,9 +77,9 @@ class CaptureNode {
                 node_.param("outputTemp", outputTemp_, std::string("imu/temp/raw"));
                 node_.param("rate", rate_, 15.0);
 
-                pubPos_ = node_.advertise<sensor_msgs::Imu>(outputPos_, 1);
-                pubMag_ = node_.advertise<sensor_msgs::MagneticField>(outputMag_, 1);
-                pubTemp_ = node_.advertise<sensor_msgs::Temperature>(outputTemp_, 1);
+                pubPos_ = node_.advertise<sensor_msgs::Imu>(outputPos_, 10);
+                pubMag_ = node_.advertise<sensor_msgs::MagneticField>(outputMag_, 10);
+                pubTemp_ = node_.advertise<sensor_msgs::Temperature>(outputTemp_, 10);
             }
 
         virtual ~CaptureNode() {
@@ -135,8 +135,9 @@ class CaptureNode {
                 msgMag  = applyMagneticCorrection(msgMag);
                 pubMag_.publish(msgMag);
 
-
+                //NOTE Temperature not published since it adds little value
                 // Temperature message
+                /*
                 sensor_msgs::Temperature msgTemp;
 
                 msgTemp.header.stamp = ros::Time::now();
@@ -145,7 +146,8 @@ class CaptureNode {
                 msgTemp.temperature = lms303_.getTemperature();
                 
                 pubTemp_.publish(msgTemp);
-                
+                */
+
                 rate.sleep();
             }
             return true;

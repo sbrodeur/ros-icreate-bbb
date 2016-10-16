@@ -162,9 +162,11 @@ class CreateDriver:
             "odom"
             )
         
+        commonTimeStamp  = rospy.Time.now()
+
         #Odometry Related
         odom = Odometry()
-        odom.header.stamp = rospy.Time.now()
+        odom.header.stamp = commonTimeStamp
         odom.header.frame_id = "odom"
         odom.pose.pose.position.x = self.x
         odom.pose.pose.position.y = self.y
@@ -181,7 +183,7 @@ class CreateDriver:
 
         #Contact Related
         contPacket = Contact()
-        contPacket.header.stamp = rospy.Time.now()
+        contPacket.header.stamp = commonTimeStamp 
         contPacket.header.frame_id = "base_link"
         contPacket.wheeldropCaster = self.create.__getattr__('wheeldropCaster')
         contPacket.wheeldropLeft =   self.create.__getattr__('wheeldropLeft')
@@ -198,7 +200,7 @@ class CreateDriver:
 
         #Battery Related 
         battPacket = BatteryState()
-        battPacket.header.stamp =         rospy.Time.now()
+        battPacket.header.stamp =         commonTimeStamp 
         battPacket.header.frame_id =      "base_link"
         battPacket.voltage =              self.create.__getattr__('voltage')
         battPacket.current =              self.create.__getattr__('current')
@@ -211,7 +213,7 @@ class CreateDriver:
 
         #Motor Request Related
         motorPacket = MotorSpeed()
-        motorPacket.header.stamp =             rospy.Time.now()
+        motorPacket.header.stamp =             commonTimeStamp 
         motorPacket.header.frame_id =          "base_link"
         motorPacket.right =   self.create.__getattr__('requestedRightVelocity') 
         motorPacket.left =    self.create.__getattr__('requestedLeftVelocity')
@@ -219,7 +221,7 @@ class CreateDriver:
 
         #IR range Related
         irPacket = IrRange()
-        irPacket.header.stamp =           rospy.Time.now()
+        irPacket.header.stamp =           commonTimeStamp 
         irPacket.header.frame_id =        "base_link"
         irPacket.wallSignal =             self.create.__getattr__('wallSignal')
         irPacket.cliffLeftSignal =        self.create.__getattr__('cliffLeftSignal')     
