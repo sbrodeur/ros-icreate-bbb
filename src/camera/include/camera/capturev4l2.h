@@ -90,13 +90,15 @@ class VideoCapture {
 	int _width;
 	int _height;
 	int _framerate;
+	int _exposure;
+	int _focus;
 	bool _decodeEnabled;
 
 	// Codec
 	VideoDecoder* _decoder;
 
   public:
-	VideoCapture(string devname, int width, int height, int framerate=15, bool decodeEnabled=true);
+	VideoCapture(string devname, int width, int height, int framerate=15, int exposure=255, int focus=30, bool decodeEnabled=true);
 	~VideoCapture();
 	int printInfo();
 	int initMmap();

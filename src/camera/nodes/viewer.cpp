@@ -50,7 +50,7 @@ public:
   ImageViewer()
     : nh_("~"), it_(nh_)
   {
-	nh_.param("input", input, std::string("/video/default/rgb"));
+	nh_.param("input", input, std::string("/video/default"));
 
 	cvNamedWindow(input.c_str());
 	cvStartWindowThread();

@@ -38,10 +38,12 @@ static int xioctl(int fd, int request, void *arg){
         return r;
 }
 
-VideoCapture::VideoCapture (string devname, int width, int height, int framerate, bool decodeEnabled) {
+VideoCapture::VideoCapture (string devname, int width, int height, int framerate, int exposure, int focus, bool decodeEnabled) {
   _devname = devname;
   _width = width;
   _height = height;
+  _exposure = exposure;
+  _focus = focus;
   _decodeEnabled = decodeEnabled;
   _framerate = framerate;
 
@@ -128,15 +130,13 @@ int VideoCapture::printInfo()
         fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
         fmt.fmt.pix.width = _width;
         fmt.fmt.pix.height = _height;
-        //fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_BGR24;
-        //fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_GREY;
         fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
         fmt.fmt.pix.field = V4L2_FIELD_NONE;
 
         if (-1 == xioctl(_fd, VIDIOC_S_FMT, &fmt))
         {
-            perror("Setting Pixel Format");
-            return 1;
+            perror("Couldn't set pixel format");
+            //return 1;
         }
 
         struct v4l2_streamparm stream_params;
@@ -145,7 +145,7 @@ int VideoCapture::printInfo()
         if (xioctl(_fd, VIDIOC_G_PARM, &stream_params) < 0)
         {
         	perror("Couldn't get camera framerate");
-        	return 1;
+        	//return 1;
         }
         stream_params.parm.capture.timeperframe.numerator = 1;
         //TODO : It seems we must multiply by a factor of 2 to get the right framerate!
@@ -153,8 +153,49 @@ int VideoCapture::printInfo()
         if (xioctl(_fd, VIDIOC_S_PARM, &stream_params) < 0)
         {
         	perror("Couldn't set camera framerate");
-        	return 1;
+        	//return 1;
         }
+
+        // Manual exposure control
+        // See: https://linuxtv.org/downloads/v4l-dvb-apis/extended-controls.html
+        struct v4l2_control stream_control_exposure;
+        stream_control_exposure.id = V4L2_CID_EXPOSURE_AUTO;
+        stream_control_exposure.value = V4L2_EXPOSURE_MANUAL;
+        if(xioctl(_fd, VIDIOC_S_CTRL, &stream_control_exposure) != 0)
+        {
+        	perror("Couldn't set camera exposure to manual");
+        	//return 1;
+        }
+
+        // Manual exposure absolute value
+        struct v4l2_control stream_control_exposure_value;
+        stream_control_exposure_value.id = V4L2_CID_EXPOSURE_ABSOLUTE;
+        stream_control_exposure_value.value = _exposure;
+        if(xioctl(_fd, VIDIOC_S_CTRL, &stream_control_exposure_value) != 0)
+        {
+        	perror("Couldn't set camera exposure absolute value");
+        	//return 1;
+        }
+
+        // Manual focus
+		struct v4l2_control stream_control_focus;
+        stream_control_focus.id = V4L2_CID_FOCUS_AUTO;
+        stream_control_focus.value = false;
+		if(xioctl(_fd, VIDIOC_S_CTRL, &stream_control_focus) != 0)
+		{
+			perror("Couldn't set autofocus to manual");
+			//return 1;
+		}
+
+        // Manual focus absolute value
+		struct v4l2_control stream_control_focus_value;
+		stream_control_focus_value.id = V4L2_CID_FOCUS_ABSOLUTE;
+		stream_control_focus_value.value = _focus;
+		if(xioctl(_fd, VIDIOC_S_CTRL, &stream_control_focus_value) != 0)
+		{
+			perror("Couldn't set camera focus absolute value");
+			//return 1;
+		}
 
         strncpy(fourcc, (char *)&fmt.fmt.pix.pixelformat, 4);
         printf( "Selected Camera Mode:\n"

@@ -58,6 +58,8 @@ class CaptureNode {
         int width_;
         int height_;
         int framerate_;
+        int exposure_;
+        int focus_;
         bool invert_image_;
         std::string output_;
         std::string video_device_;
@@ -67,7 +69,7 @@ class CaptureNode {
             node_("~") {
                 node_.param("camera_name", camera_name_, std::string("default"));
 
-                node_.param("output", output_, std::string(camera_name_ + "/raw"));
+                node_.param("output", output_, std::string("/video/" + camera_name_ + "/compressed"));
 
                 std::string nodeName;
                 pub_ = node_.advertise<sensor_msgs::CompressedImage>(output_, 1);
@@ -81,8 +83,10 @@ class CaptureNode {
                 node_.param("width", width_, 640);
                 node_.param("height", height_, 480);
                 node_.param("framerate", framerate_, 5);
+                node_.param("exposure", exposure_, 255);
+                node_.param("focus", focus_, 30);
 
-                capture_ = new VideoCapture(video_device_, width_, height_, framerate_, false);
+                capture_ = new VideoCapture(video_device_, width_, height_, framerate_, exposure_, focus_, false);
             }
 
         virtual ~CaptureNode() {

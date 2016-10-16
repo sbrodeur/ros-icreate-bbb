@@ -53,8 +53,8 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 ## Declare a cpp executable
-add_executable(capture nodes/capture.cpp)
-target_link_libraries(capture
+add_executable(${PROJECT_NAME}_capture nodes/capture.cpp)
+target_link_libraries(${PROJECT_NAME}_capture
   ${PROJECT_NAME}
   ${avcodec_LIBRARIES}
   ${swscale_LIBRARIES}
@@ -64,8 +64,8 @@ target_link_libraries(capture
   ${catkin_LIBRARIES}
 )
 
-add_executable(viewer nodes/viewer.cpp)
-target_link_libraries(viewer
+add_executable(${PROJECT_NAME}_viewer nodes/viewer.cpp)
+target_link_libraries(${PROJECT_NAME}_viewer
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
@@ -75,7 +75,7 @@ target_link_libraries(viewer
 #############
 
 ## Mark executables and/or libraries for installation
-install(TARGETS capture viewer ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME}_capture ${PROJECT_NAME}_viewer ${PROJECT_NAME}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )

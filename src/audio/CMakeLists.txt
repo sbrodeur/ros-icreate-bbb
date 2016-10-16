@@ -14,6 +14,11 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ALSA COMPONENTS asound REQUIRED)
+
+SET(ASOUND_LINK_FLAGS    "-lasound")
+SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${ASOUND_LINK_FLAGS}" )
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -109,17 +114,22 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-## Declare a cpp library
-# add_library(beginner_tutorials
-#   src/${PROJECT_NAME}/beginner_tutorials.cpp
-# )
+include_directories(include
+  ${catkin_INCLUDE_DIRS}
+  ${lasound_INCLUDE_DIRS}
+)
 
 ## Declare a cpp executable
-# add_executable(beginner_tutorials_node src/beginner_tutorials_node.cpp)
+add_executable(${PROJECT_NAME}_capture nodes/capture.cpp)
+target_link_libraries(${PROJECT_NAME}_capture
+  ${lasound_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(beginner_tutorials_node beginner_tutorials_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME}_capture ${PROJECT_NAME}_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(beginner_tutorials_node
@@ -141,11 +151,10 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS beginner_tutorials beginner_tutorials_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+install(TARGETS ${PROJECT_NAME}_capture
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
