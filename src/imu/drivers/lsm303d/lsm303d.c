@@ -322,7 +322,7 @@ static const struct lsm303d_acc_platform_data default_lsm303d_acc_pdata = {
 		{0, 1, 0},
 		{0, 0, 1},
 	},
-	.poll_interval = 100,
+	.poll_interval = 10,
 	.min_interval = LSM303D_ACC_MIN_POLL_PERIOD_MS,
 	.aa_filter_bandwidth = ANTI_ALIASING_773,
 	.gpio_int1 = DEFAULT_INT1_GPIO,
@@ -330,7 +330,7 @@ static const struct lsm303d_acc_platform_data default_lsm303d_acc_pdata = {
 };
 
 static const struct lsm303d_mag_platform_data default_lsm303d_mag_pdata = {
-	.poll_interval = 100,
+	.poll_interval = 10,
 	.min_interval = LSM303D_MAG_MIN_POLL_PERIOD_MS,
 	.fs_range = LSM303D_MAG_FS_2G,
 	.rot_matrix = {
@@ -744,7 +744,6 @@ static void lsm303d_irq1_work_func(struct work_struct *work)
 	
 	lsm303d_interrupt_catch(stat,1);
 	pr_info("%s: IRQ1 triggered\n", LSM303D_DEV_NAME);
-exit:
 	enable_irq(stat->irq1);
 }
 
@@ -758,7 +757,6 @@ static void lsm303d_irq2_work_func(struct work_struct *work)
 	
 	lsm303d_interrupt_catch(stat,2);
 	pr_info("%s: IRQ2 triggered\n", LSM303D_DEV_NAME);
-exit:
 	enable_irq(stat->irq2);
 }
 

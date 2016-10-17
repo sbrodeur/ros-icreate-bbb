@@ -44,6 +44,20 @@ target_link_libraries(${PROJECT_NAME}_capture
   ${catkin_LIBRARIES}
 )
 
+add_executable(${PROJECT_NAME}_capture_acc_gyro nodes/capture_acc_gyro.cpp )
+add_dependencies(${PROJECT_NAME}_capture_acc_gyro ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_capture_acc_gyro
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
+add_executable(${PROJECT_NAME}_capture_mag nodes/capture_mag.cpp )
+add_dependencies(${PROJECT_NAME}_capture_mag ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_capture_mag
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
 add_executable(${PROJECT_NAME}_captureBMP nodes/captureBMP.cpp)
 add_dependencies(${PROJECT_NAME}_captureBMP ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME}_captureBMP

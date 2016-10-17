@@ -187,7 +187,7 @@ static struct l3gd20_gyr_platform_data default_l3gd20_gyr_pdata = {
 	.negate_y = 0,
 	.negate_z = 0,
 
-	.poll_interval = 100,
+	.poll_interval = 10,
 	.min_interval = L3GD20_GYR_MIN_POLL_PERIOD_MS, /* 2ms */
 
 	.gpio_int1 = L3GD20_GYR_DEFAULT_INT1_GPIO,

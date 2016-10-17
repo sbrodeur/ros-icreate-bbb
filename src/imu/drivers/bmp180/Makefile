@@ -1,4 +1,7 @@
-obj-m := bmp085.o bmp085-i2c.o bmp085-probe.o
+
+CXXFLAGS += -O3
+
+obj-m := bmp085.o bmp085-probe.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 
