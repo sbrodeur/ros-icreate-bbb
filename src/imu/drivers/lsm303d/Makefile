@@ -1,4 +1,4 @@
-obj-m := lsm303d.o
+obj-m := lsm303d.o lsm303d-probe.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 

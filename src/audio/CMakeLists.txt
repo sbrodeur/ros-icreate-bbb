@@ -14,8 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(ALSA COMPONENTS asound REQUIRED)
+#find_package(PkgConfig REQUIRED)
+#pkg_check_modules(ALSA REQUIRED COMPONENTS asound)
 
 SET(ASOUND_LINK_FLAGS    "-lasound")
 SET( CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${ASOUND_LINK_FLAGS}" )

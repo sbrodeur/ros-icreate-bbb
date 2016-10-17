@@ -847,7 +847,7 @@ static ssize_t attr_polling_rate_store(struct device *dev,
 	struct l3gd20_gyr_status *stat = dev_get_drvdata(dev);
 	unsigned long interval_ms;
 
-	if (strict_strtoul(buf, 10, &interval_ms))
+	if (kstrtoul(buf, 10, &interval_ms))
 		return -EINVAL;
 	if (!interval_ms)
 		return -EINVAL;
@@ -893,7 +893,7 @@ static ssize_t attr_range_store(struct device *dev,
 	unsigned long val;
 	u8 range;
 	int err;
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 	switch (val) {
 	case 250:
@@ -934,7 +934,7 @@ static ssize_t attr_enable_store(struct device *dev,
 	struct l3gd20_gyr_status *stat = dev_get_drvdata(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
 	if (val)
@@ -965,7 +965,7 @@ static ssize_t attr_polling_mode_store(struct device *dev,
 	struct l3gd20_gyr_status *stat = dev_get_drvdata(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val))
+	if (kstrtoul(buf, 10, &val))
 		return -EINVAL;
 
 	mutex_lock(&stat->lock);
@@ -996,7 +996,7 @@ static ssize_t attr_watermark_store(struct device *dev,
 	unsigned long watermark;
 	int res;
 
-	if (strict_strtoul(buf, 16, &watermark))
+	if (kstrtoul(buf, 16, &watermark))
 		return -EINVAL;
 
 	res = l3gd20_gyr_update_watermark(stat, watermark);
@@ -1022,7 +1022,7 @@ static ssize_t attr_fifomode_store(struct device *dev,
 	unsigned long fifomode;
 	int res;
 
-	if (strict_strtoul(buf, 16, &fifomode))
+	if (kstrtoul(buf, 16, &fifomode))
 		return -EINVAL;
 	/* if (!fifomode)
 		return -EINVAL; */
@@ -1055,7 +1055,7 @@ static ssize_t attr_reg_set(struct device *dev, struct device_attribute *attr,
 	u8 x[2];
 	unsigned long val;
 
-	if (strict_strtoul(buf, 16, &val))
+	if (kstrtoul(buf, 16, &val))
 		return -EINVAL;
 	mutex_lock(&stat->lock);
 	x[0] = stat->reg_addr;
@@ -1087,7 +1087,7 @@ static ssize_t attr_addr_set(struct device *dev, struct device_attribute *attr,
 	struct l3gd20_gyr_status *stat = dev_get_drvdata(dev);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 16, &val))
+	if (kstrtoul(buf, 16, &val))
 		return -EINVAL;
 
 	mutex_lock(&stat->lock);
@@ -1101,14 +1101,14 @@ static ssize_t attr_addr_set(struct device *dev, struct device_attribute *attr,
 #endif /* DEBUG */
 
 static struct device_attribute attributes[] = {
-	__ATTR(pollrate_ms, 0666, attr_polling_rate_show,
+	__ATTR(pollrate_ms, 0664, attr_polling_rate_show,
 						attr_polling_rate_store),
-	__ATTR(range, 0666, attr_range_show, attr_range_store),
-	__ATTR(enable_device, 0666, attr_enable_show, attr_enable_store),
-	__ATTR(enable_polling, 0666, attr_polling_mode_show,
+	__ATTR(range, 0664, attr_range_show, attr_range_store),
+	__ATTR(enable_device, 0664, attr_enable_show, attr_enable_store),
+	__ATTR(enable_polling, 0664, attr_polling_mode_show,
 						attr_polling_mode_store),
-	__ATTR(fifo_samples, 0666, attr_watermark_show, attr_watermark_store),
-	__ATTR(fifo_mode, 0666, attr_fifomode_show, attr_fifomode_store),
+	__ATTR(fifo_samples, 0664, attr_watermark_show, attr_watermark_store),
+	__ATTR(fifo_mode, 0664, attr_fifomode_show, attr_fifomode_store),
 #ifdef DEBUG
 	__ATTR(reg_value, 0600, attr_reg_get, attr_reg_set),
 	__ATTR(reg_addr, 0200, NULL, attr_addr_set),

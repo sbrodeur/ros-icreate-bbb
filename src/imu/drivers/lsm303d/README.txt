@@ -15,10 +15,12 @@ $ sudo depmod -a
 $ sudo nano /etc/modules 
 Add lines as follow
 lsm303d
+lsm303d-probe
 
 *Test:
 -------
-$ sudo modprobe lsm303d
+$ sudo modprobe lsm303d lsm303d-probe
 
-$ cat /sys/bus/i2c/drivers/bmp085/1-0077/temp0_input
-$ cat /sys/bus/i2c/drivers/bmp085/1-0077/pressure0_input
+$ cat /sys/bus/i2c/drivers/lsm303d/2-001d/enable_temperature
+$ cat /sys/bus/i2c/drivers/lsm303d/2-001d/read_temperature
+

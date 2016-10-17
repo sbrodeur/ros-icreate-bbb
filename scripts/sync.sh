@@ -12,6 +12,15 @@ echo "Syncing Catkin workspace ${PROJECT_ROOT} to Beaglebone ..."
 cd ${PROJECT_ROOT}
 echo "build" >> ${DIR}/.exclude
 echo "devel" >> ${DIR}/.exclude
+echo "video" >> ${DIR}/.exclude
+echo "data" >> ${DIR}/.exclude
+echo "datasets" >> ${DIR}/.exclude
+echo "*.bag" >> ${DIR}/.exclude
+echo "*.rosbag" >> ${DIR}/.exclude
+echo "*.h5" >> ${DIR}/.exclude
+echo "*.h5.*" >> ${DIR}/.exclude
+echo "*.orig" >> ${DIR}/.exclude
+echo "*.mp4" >> ${DIR}/.exclude
 echo ".svn" >> ${DIR}/.exclude
 echo ".exclude" >> ${DIR}/.exclude
 

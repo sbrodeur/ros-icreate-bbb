@@ -15,10 +15,11 @@ $ sudo depmod -a
 $ sudo nano /etc/modules 
 Add lines as follow
 l3gd20
+l3gd20-probe
 
 *Test:
 -------
-$ sudo modprobe l3gd20
+$ sudo modprobe l3gd20 l3gd20-probe
 
-$ cat /sys/bus/i2c/drivers/bmp085/1-0077/temp0_input
-$ cat /sys/bus/i2c/drivers/bmp085/1-0077/pressure0_input
+$ cat /sys/bus/i2c/drivers/l3gd20_gyr/2-006b/name
+$ cat /sys/bus/i2c/drivers/l3gd20_gyr/2-006b/range
