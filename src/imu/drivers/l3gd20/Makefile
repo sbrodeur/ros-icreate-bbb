@@ -1,3 +1,6 @@
+
+CXXFLAGS += -O3
+
 obj-m := l3gd20.o l3gd20-probe.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
