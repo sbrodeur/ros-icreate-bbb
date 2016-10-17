@@ -34,7 +34,7 @@
 #include <ros/console.h>
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
-
+#include <boost/lexical_cast.hpp>
 
 using namespace std;
 
@@ -50,6 +50,10 @@ class CaptureNodeBMP {
 
         std::ifstream mPresFile;
         std::ifstream mTempFile;
+        int lengthT ;
+        int lengthP ;
+        char * currentTemperature ;
+        char * currentPressure ;
 
         double rate_;
 
@@ -74,20 +78,25 @@ class CaptureNodeBMP {
                 mTempFile.open((deviceLoc + tempProbe).c_str(), std::ifstream::in);
                 mPresFile.open((deviceLoc + presProbe).c_str(), std::ifstream::in);
 
+                lengthT = sizeof(int);
+                lengthP = sizeof(double);
+                currentTemperature = new char[lengthT];
+                currentPressure = new char[lengthP];
+
+
             }
 
         virtual ~CaptureNodeBMP() {
             // Close files
             mTempFile.close();
             mPresFile.close();
+            delete[] currentTemperature;
+            delete[] currentPressure;
         }
 
         bool spin() {
 
-            int currentTemperature;
-            int currentPressure;
-
-            ros::Rate rate(rate_);
+                       ros::Rate rate(rate_);
             while (node_.ok()) {
 
                 //read from files
@@ -95,7 +104,7 @@ class CaptureNodeBMP {
                 if(mTempFile.good())
                 {
                     mTempFile.seekg(0, mTempFile.beg);
-                    mTempFile >> currentTemperature;
+                    mTempFile.getline(currentTemperature, lengthT);
                 }
                 else
                 {
@@ -105,7 +114,7 @@ class CaptureNodeBMP {
                 if(mPresFile.good())
                 {
                     mPresFile.seekg(0, mPresFile.beg);
-                    mPresFile >> currentPressure;
+                    mPresFile.getline(currentPressure,lengthP);
                 }
                 else
                 {
@@ -113,25 +122,25 @@ class CaptureNodeBMP {
                 }
 
                 
+                ros::Time commonTimeStamp = ros::Time::now();
 
                 //Publish Temperature
                 sensor_msgs::Temperature msgTemp;
-                msgTemp.header.stamp = ros::Time::now();
+                msgTemp.header.stamp = commonTimeStamp;
                 msgTemp.header.frame_id = "imu_link";
-                msgTemp.temperature = float(currentTemperature/10.0);
+                msgTemp.temperature = boost::lexical_cast<float>(currentTemperature)/10.0;
                 pubTemp_.publish(msgTemp);
 
                 //Publish Pressure
                 sensor_msgs::FluidPressure msgPres;
-                msgPres.header.stamp = ros::Time::now();
+                msgPres.header.stamp = commonTimeStamp;
                 msgPres.header.frame_id = "imu_link";
-                msgPres.fluid_pressure = float(currentPressure);
+                msgPres.fluid_pressure = float(boost::lexical_cast<double>(currentPressure));
                 pubPres_.publish(msgPres);
-
-
 
                 rate.sleep();
             }
+            
             return true;
         }
 
