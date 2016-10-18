@@ -1,64 +1,75 @@
 <launch>
 
-<node name="irobot_create" pkg="irobot_create" type="driver.py" output="screen" >
-	<param name="name" value="irobot_create" />        
-	<param name="port" value="/dev/ttyS1" />
+<node name="irobot_create" pkg="create" type="create_driver" output="screen" >
+	<param name="dev" value="/dev/ttyS1" />
+	<param name="latch_cmd_duration" value="1000.0" />
+	<param name="publish_tf" value="True" />
 	<param name="safety" value="True" />
-	<param name="charging" value="False" />
-    <param name="autodock" value="0.0" />
+    <param name="rate" value="20.0" />
 </node>
 
-
-<node name="video1" pkg="camera" type="capture" output="screen">
+<node name="video_left" pkg="camera" type="camera_capture" output="screen">
     <param name="video_device" value="/dev/video6" />
     <param name="width" value="640" />
     <param name="height" value="480" />
     <param name="framerate" value="15" />
+    <param name="exposure" value="255" />
+    <param name="gain" value="255" />
+    <param name="focus" value="0" />
     <param name="camera_name" value="left"/>
     <param name="output" value="/video/left/compressed" />
     <param name="camera_info_url" value="package://camera/calibration/left_calibration.yaml" />
 </node>
 
-<node name="video2" pkg="camera" type="capture" output="screen">
+<node name="video_right" pkg="camera" type="camera_capture" output="screen">
     <param name="video_device" value="/dev/video7" />
     <param name="width" value="640" />
     <param name="height" value="480" />
     <param name="framerate" value="15" />
+    <param name="exposure" value="255" />
+    <param name="gain" value="255" />
+    <param name="focus" value="0" />
     <param name="camera_name" value="right"/>
     <param name="output" value="/video/right/compressed" />
     <param name="camera_info_url" value="package://camera/calibration/right_calibration.yaml" />
 </node>
 
-<node name="mic1" pkg="audio" type="capture_alsa.py" output="screen">
+<node name="mic_left" pkg="audio" type="audio_capture" output="screen">
     <param name="device" value="front:CARD=Q9000,DEV=0" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
-    <param name="buffer_size" value="512" />
+    <param name="buffer_size" value="1024" />
     <param name="mic_name" value="left"/>
     <param name="output" value="/audio/left/raw" />
 </node>
 
-<node name="mic2" pkg="audio" type="capture_alsa.py" output="screen">
+<node name="mic_right" pkg="audio" type="audio_capture" output="screen">
     <param name="device" value="front:CARD=Q9000_1,DEV=0" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
-    <param name="buffer_size" value="512" />
+    <param name="buffer_size" value="1024" />
     <param name="mic_name" value="right"/>
     <param name="output" value="/audio/right/raw" />
 </node>
 
-<node name="imu" pkg="imu" type="imu_capture" output="screen">
+<node name="imu_acc_gyro" pkg="imu" type="imu_capture_acc_gyro" output="screen">
     <param name="outputPos" value="/imu/data_raw" />
-    <param name="outputMag" value="/imu/mag" />
-    <param name="outputTemp" value="/imu/temp" />
-    <param name="rate" value="20.0" />
+    <param name="deviceAccel" value="/dev/lsm303d_acc" />
+    <param name="deviceGyro" value="/dev/l3gd20_gyr" />
+    <param name="rate" value="100.0" />
 </node>
 
-<node name="imu_bmp" pkg="imu" type="captureBMP.py" output="screen" >
+<node name="imu_mag" pkg="imu" type="imu_capture_mag" output="screen">
+    <param name="outputPos" value="/imu/mag" />
+    <param name="deviceMag" value="/dev/lsm303d_mag" />
+    <param name="rate" value="100.0" />
+</node>
+
+<node name="imu_bmp" pkg="imu" type="imu_captureBMP" output="screen" >
     <param name="deviceLocation" value="/sys/bus/i2c/drivers/bmp085/2-0077" />        
     <param name="tempProbe" value="/temp0_input" />
     <param name="presProbe" value="/pressure0_input" />
-    <param name="rateHz" value="20" />
+    <param name="rateHz" value="15.0" />
     <param name="outputTemp" value="/imu/temp" />
     <param name="outputPres" value="/imu/pres" />
 </node>

@@ -794,6 +794,29 @@ def processTemperature(dataset, outDirPath, downsampleRatio=1.0):
     
     exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
         
+def processPressure(dataset, outDirPath, downsampleRatio=1.0):
+    group = 'imu'
+    name = 'pressure'
+
+    [_, _, raw, clock, shape] = dataset.getStates(name, group)
+    
+    # Estimate sampling rate from clock
+    fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+    logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+    windowSize = 2*fs
+
+    outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+    logger.info('Writing to output video file %s' % (outputVideoFile))
+
+    title = 'Atmospheric pressure'
+    labels = ['Time [sec]', "Pressure [kPa]"]
+    normalPressure = 101.325 # Average sea-level pressure
+    variation = 3.386
+    ylim=[normalPressure - variation, normalPressure + variation]
+    legend = None
+    
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        
 def processOdometryTwistAngular(dataset, outDirPath, downsampleRatio):
     group = 'odometry'
     name = 'twist_angular'
@@ -957,6 +980,8 @@ def process(name, datasetPath, outDirPath, downsampleRatio=1):
             processOdometryTwistAngular(dataset, outDirPath, downsampleRatio)
         elif name == 'imu-temperature':
             processTemperature(dataset, outDirPath, downsampleRatio)
+        elif name == 'imu-pressure':
+            processPressure(dataset, outDirPath, downsampleRatio)
         else:
             raise Exception('Unknown name: %s' % (name))
 
@@ -997,7 +1022,7 @@ def main(args=None):
     
     defaultNames = ['orientation-raw', 'imu-accel-raw', 'imu-gyro-raw', 'twist_linear', 'twist_angular','imu-temperature',
                     'position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
-                    'contact','cliff','wheel-drop','range', 'imu-accel', 'imu-gyro', 'imu-mag',
+                    'contact','cliff','wheel-drop','range', 'imu-accel', 'imu-gyro', 'imu-mag', 'imu-pressure',
                     'motors', 'video', 'audio', 'battery-charge', 'battery-percentage', 'battery-status']
     
     if options.sensors is not None:

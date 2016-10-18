@@ -1,0 +1,29 @@
+<launch>
+
+<node name="video1" pkg="camera" type="camera_capture" output="screen">
+    <param name="video_device" value="/dev/video6" />
+    <param name="width" value="640" />
+    <param name="height" value="480" />
+    <param name="framerate" value="15" />
+    <param name="exposure" value="255" />
+    <param name="gain" value="255" />
+    <param name="focus" value="0" />
+    <param name="camera_name" value="left"/>
+    <param name="output" value="/video/left/compressed" />
+    <param name="camera_info_url" value="package://camera/calibration/left_calibration.yaml" />
+</node>
+
+<node name="video2" pkg="camera" type="camera_capture" output="screen">
+    <param name="video_device" value="/dev/video7" />
+    <param name="width" value="640" />
+    <param name="height" value="480" />
+    <param name="framerate" value="15" />
+    <param name="exposure" value="255" />
+    <param name="gain" value="255" />
+    <param name="focus" value="0" />
+    <param name="camera_name" value="right"/>
+    <param name="output" value="/video/right/compressed" />
+    <param name="camera_info_url" value="package://camera/calibration/right_calibration.yaml" />
+</node>
+
+</launch>

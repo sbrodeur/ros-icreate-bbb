@@ -134,8 +134,11 @@ class CaptureNode {
 					// ev.value are in ug
 					switch(ev.code) {
 						case ABS_X : dataAccel_.x = ev.value;
+							break;
 						case ABS_Y : dataAccel_.y = ev.value;
+							break;
 						case ABS_Z : dataAccel_.z = ev.value;
+							break;
 					}
 				}else if (ev.type == EV_SYN){
 					dataReady = true;
@@ -159,8 +162,11 @@ class CaptureNode {
 					// ev.value are in udps
 					switch(ev.code) {
 						case ABS_X : dataGyro_.x = ev.value;
+							break;
 						case ABS_Y : dataGyro_.y = ev.value;
+							break;
 						case ABS_Z : dataGyro_.z = ev.value;
+							break;
 					}
 				}else if (ev.type == EV_SYN){
 					dataReady = true;

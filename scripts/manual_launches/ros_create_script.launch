@@ -1,0 +1,11 @@
+<launch>
+
+<node name="irobot_create" pkg="create" type="create_driver" output="screen" >
+	<param name="dev" value="/dev/ttyS1" />
+	<param name="latch_cmd_duration" value="1000.0" />
+	<param name="publish_tf" value="True" />
+	<param name="safety" value="True" />
+    <param name="rate" value="100.0" />
+</node>
+
+</launch>

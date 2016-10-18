@@ -75,22 +75,21 @@ class RealtimeImuPlotter:
         self.lines.append(ax2.plot(xdata,ydata,'-g'))
         self.lines.append(ax2.plot(xdata,ydata,'-b'))
         
-        input = rospy.get_param('~input', '/imu/raw')
+        input = rospy.get_param('~input', '/imu/data_raw')
         rospy.Subscriber(input, Imu, RealtimeImuPlotter.callback, self)
 
     def animate(self):
         try:
             data = self.q.get(True, 0.25)
-            
-            xdata=pylab.arange(0,self,1)
+            xdata=pylab.arange(0,self.windowSize,1)
             for i in range(0, 6):
                 self.data[0:-1:,i] = self.data[1::,i]
-                self.data[-1,i] = data
+                self.data[-1,i] = data[0, i]
                 ydata=pylab.array(self.data[:,i])
              
                 # Update existing line plots
                 self.lines[i][0].set_data(xdata,ydata)
-                self.ax[i/2].axis([xdata.min(),xdata.max(),ydata.min(),ydata.max()])
+                self.axes[i/3].axis([xdata.min(),xdata.max(),ydata.min(),ydata.max()])
             
             self.fig.canvas.draw() 
         except Queue.Empty:

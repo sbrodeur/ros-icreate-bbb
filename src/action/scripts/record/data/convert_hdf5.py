@@ -106,6 +106,14 @@ class StateSaver(object):
             self.outHdf5.addState('temperature', state, t, group='imu', variableShape=False, maxShape=None)
             
             self.countProcessed += 1
+        
+        if topic == '/imu/pressure':
+
+            # Barometer pressure
+            state = np.array([msg.fluid_pressure], dtype=np.float64)
+            self.outHdf5.addState('pressure', state, t, group='imu', variableShape=False, maxShape=None)
+            
+            self.countProcessed += 1
             
         if topic == '/irobot_create/battery':
             
@@ -159,15 +167,6 @@ class StateSaver(object):
             
             self.countProcessed += 1
         
-        if topic == '/irobot_create/motorRequests':
-            # WARNING: deprecated message
-            
-            # Motor velocity
-            state = np.array([msg.requestedLeftVelocity, msg.requestedRightVelocity], dtype=np.int16)
-            self.outHdf5.addState('speed', state, t, group='motors', variableShape=False, maxShape=None)
-            
-            self.countProcessed += 1
-
         if topic == '/irobot_create/motors':
             
             # Motor velocity

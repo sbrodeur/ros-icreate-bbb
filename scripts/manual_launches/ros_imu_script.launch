@@ -1,0 +1,25 @@
+<launch>
+
+<node name="imu_acc_gyro" pkg="imu" type="imu_capture_acc_gyro" output="screen">
+    <param name="outputPos" value="/imu/data_raw" />
+    <param name="deviceAccel" value="/dev/lsm303d_acc" />
+    <param name="deviceGyro" value="/dev/l3gd20_gyr" />
+    <param name="rate" value="100.0" />
+</node>
+
+<node name="imu_mag" pkg="imu" type="imu_capture_mag" output="screen">
+    <param name="outputPos" value="/imu/mag" />
+    <param name="deviceMag" value="/dev/lsm303d_mag" />
+    <param name="rate" value="100.0" />
+</node>
+
+<node name="imu_bmp" pkg="imu" type="imu_captureBMP" output="screen" >
+    <param name="deviceLocation" value="/sys/bus/i2c/drivers/bmp085/2-0077" />        
+    <param name="tempProbe" value="/temp0_input" />
+    <param name="presProbe" value="/pressure0_input" />
+    <param name="rateHz" value="20" />
+    <param name="outputTemp" value="/imu/temp" />
+    <param name="outputPres" value="/imu/pres" />
+</node>
+
+</launch>

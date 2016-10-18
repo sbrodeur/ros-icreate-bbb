@@ -109,8 +109,11 @@ class CaptureNode {
 					// ev.value are in uG
 					switch(ev.code) {
 						case ABS_X : dataMag_.x = ev.value;
+							break;
 						case ABS_Y : dataMag_.y = ev.value;
+							break;
 						case ABS_Z : dataMag_.z = ev.value;
+							break;
 					}
 				}else if (ev.type == EV_SYN){
 					dataReady = true;
