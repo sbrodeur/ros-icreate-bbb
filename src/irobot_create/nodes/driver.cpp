@@ -20,13 +20,27 @@ CreateDriver::CreateDriver(ros::NodeHandle& nh)
   priv_nh_.param<bool>("publish_tf", publish_tf_, true);
   priv_nh_.param<bool>("safety", safety_, true);
 
+  create::SerialMode serialMode;
+  std::string serial_mode_str;
+  priv_nh_.param<std::string>("serial_mode", serial_mode_str, "auto");
+  if (serial_mode_str == "auto"){
+	  serialMode = create::AUTO;
+  }else if (serial_mode_str == "streaming"){
+	  serialMode = create::STREAMING;
+  }else if (serial_mode_str == "query"){
+	  serialMode = create::QUERY;
+  }else{
+	  ROS_FATAL("[CREATE] Unknown serial mode.");
+	  ros::shutdown();
+  }
+
   model_ = create::RobotModel::CREATE_1;
   safety_restriction_ = SAFETY_RESTRICTION_NONE;
   safety_problem_ = false;
 
   priv_nh_.param<int>("baud", baud_, model_.getBaud());
 
-  robot_ = new create::Create(model_);
+  robot_ = new create::Create(model_, serialMode);
 
   if (!robot_->connect(dev_, baud_))
   {

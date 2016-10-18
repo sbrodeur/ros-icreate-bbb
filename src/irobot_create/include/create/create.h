@@ -44,6 +44,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "create/util.h"
 
 namespace create {
+
+  enum SerialMode {
+	AUTO = 0,
+	STREAMING = 1,
+	QUERY = 2
+  };
+
   class Create {
     private:
       typedef boost::numeric::ublas::matrix<float> Matrix;
@@ -54,6 +61,7 @@ namespace create {
         LED_DOCK = 4,
         LED_CHECK = 8
       };
+
 
       RobotModel model;
 
@@ -70,6 +78,7 @@ namespace create {
       uint8_t powerLEDIntensity;
 
       CreateMode mode;
+      SerialMode serialMode;
 
       create::Pose pose;
       create::Vel vel;
@@ -83,7 +92,7 @@ namespace create {
 
       Matrix poseCovar;
 
-      void init();
+      void init(const SerialMode& serialMode = AUTO);
       // Add two matrices and handle overflow case
       Matrix addMatrices(const Matrix &A, const Matrix &B) const;
       void onData();
@@ -97,7 +106,7 @@ namespace create {
       /* Default constructor.
        * Does not attempt to establish serial connection to Create.
        */
-      Create(RobotModel=RobotModel::CREATE_1);
+      Create(RobotModel=RobotModel::CREATE_1, const SerialMode& serialMode = AUTO);
 
       /* Attempts to establish serial connection to Create.
        * \param port of your computer that is connected to Create.
@@ -105,7 +114,7 @@ namespace create {
        *        115200 for Create 2 and 57600 for Create 1.
        * \param model type of robot.
        */
-      Create(const std::string& port, const int& baud, RobotModel model = RobotModel::CREATE_1);
+      Create(const std::string& port, const int& baud, RobotModel model = RobotModel::CREATE_1, const SerialMode& serialMode = AUTO);
 
       ~Create();
 
