@@ -116,9 +116,9 @@ class BehaviourController:
         self.lastMotorAction = None
         self.state = RobotState(Contact(),BatteryState(),Odometry())
         
-        rospy.wait_for_service('/irobot_create/tank')
-        self.tank = rospy.ServiceProxy('/irobot_create/tank', Tank)
-        self.dock = rospy.ServiceProxy('/irobot_create/dock', Dock)
+        #rospy.wait_for_service('/irobot_create/tank')
+        #self.tank = rospy.ServiceProxy('/irobot_create/tank', Tank)
+        #self.dock = rospy.ServiceProxy('/irobot_create/dock', Dock)
         
         self.input = rospy.get_param('~input', '/irobot_create')
         rospy.Subscriber(self.input + '/battery', BatteryState, BehaviourController.callback, self)
