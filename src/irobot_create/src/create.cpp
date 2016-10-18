@@ -17,7 +17,7 @@ namespace create {
 
   // TODO: Handle SIGINT to do clean disconnect
 
-  void Create::init() {
+  void Create::init(const SerialMode& serialMode) {
     mainMotorPower = 0;
     sideMotorPower = 0;
     vacuumMotorPower = 0;
@@ -43,19 +43,26 @@ namespace create {
     vel.covariance = std::vector<float>(9, 0.0);
     poseCovar = Matrix(3, 3, 0.0);
     data = boost::shared_ptr<Data>(new Data(model.getVersion()));
-	if (model.getVersion() == V_1) {
-	  serial = boost::make_shared<SerialQuery>(data);
-	} else {
-	  serial = boost::make_shared<SerialStream>(data);
-	}
+
+    if (serialMode == AUTO){
+		if (model.getVersion() == V_1) {
+		  serial = boost::make_shared<SerialQuery>(data);
+		} else {
+		  serial = boost::make_shared<SerialStream>(data);
+		}
+    }else if (serialMode == STREAMING){
+    	serial = boost::make_shared<SerialStream>(data);
+    }else if (serialMode == QUERY){
+    	serial = boost::make_shared<SerialQuery>(data);
+    }
   }
 
-  Create::Create(RobotModel m) : model(m) {
-    init();
+  Create::Create(RobotModel m, const SerialMode& serialMode) : model(m) {
+    init(serialMode);
   }
 
-  Create::Create(const std::string& dev, const int& baud, RobotModel m) : model(m) {
-    init();
+  Create::Create(const std::string& dev, const int& baud, RobotModel m, const SerialMode& serialMode) : model(m) {
+    init(serialMode);
     serial->connect(dev, baud);
   }
 

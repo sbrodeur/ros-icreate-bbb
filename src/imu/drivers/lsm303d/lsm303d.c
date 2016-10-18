@@ -316,7 +316,7 @@ struct lsm303d_status {
 };
 
 static const struct lsm303d_acc_platform_data default_lsm303d_acc_pdata = {
-	.fs_range = LSM303D_ACC_FS_2G,
+	.fs_range = LSM303D_ACC_FS_4G,
 	.rot_matrix = {
 		{1, 0, 0},
 		{0, 1, 0},
