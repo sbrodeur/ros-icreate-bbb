@@ -23,8 +23,8 @@
  */
 
 #include "imu_filter_madgwick/imu_filter_ros.h"
+#include "imu_filter_madgwick/stateless_orientation.h"
 #include "geometry_msgs/TransformStamped.h"
-#include "geometry_msgs/Pose.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 
@@ -36,7 +36,8 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   ROS_INFO ("Starting ImuFilter");
 
   // **** get paramters
-
+  if (!nh_private_.getParam ("stateless", stateless_))
+    stateless_ = false;
   if (!nh_private_.getParam ("use_mag", use_mag_))
    use_mag_ = true;
   if (!nh_private_.getParam ("publish_tf", publish_tf_))
@@ -49,8 +50,38 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
     constant_dt_ = 0.0;
   if (!nh_private_.getParam ("publish_debug_topics", publish_debug_topics_))
     publish_debug_topics_= false;
+
+  // For ROS Jade, make this default to true.
   if (!nh_private_.getParam ("use_magnetic_field_msg", use_magnetic_field_msg_))
-    use_magnetic_field_msg_ = true;
+  {
+      if (use_mag_)
+      {
+          ROS_WARN("Deprecation Warning: The parameter use_magnetic_field_msg was not set, default is 'false'.");
+          ROS_WARN("Starting with ROS Jade, use_magnetic_field_msg will default to 'true'!");
+      }
+      use_magnetic_field_msg_ = false;
+  }
+
+  std::string world_frame;
+  // Default should become false for next release
+  if (!nh_private_.getParam ("world_frame", world_frame)) {
+    world_frame = "nwu";
+    ROS_WARN("Deprecation Warning: The parameter world_frame was not set, default is 'nwu'.");
+    ROS_WARN("Starting with ROS Lunar, world_frame will default to 'enu'!");
+  }
+
+  if (world_frame == "ned") {
+    world_frame_ = WorldFrame::NED;
+  } else if (world_frame == "nwu"){
+    world_frame_ = WorldFrame::NWU;
+  } else if (world_frame == "enu"){
+    world_frame_ = WorldFrame::ENU;
+  } else {
+    ROS_ERROR("The parameter world_frame was set to invalid value '%s'.", world_frame.c_str());
+    ROS_ERROR("Valid values are 'enu', 'ned' and 'nwu'. Setting to 'enu'.");
+    world_frame_ = WorldFrame::ENU;
+  }
+  filter_.setWorldFrame(world_frame_);
 
   // check for illegal constant_dt values
   if (constant_dt_ < 0.0)
@@ -82,9 +113,6 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
 
     rpy_raw_debug_publisher_ = nh_.advertise<geometry_msgs::Vector3Stamped>(
       ros::names::resolve("imu") + "/rpy/raw", 5);
-    
-    rpy_pose_publisher = nh_.advertise<geometry_msgs::Pose>(
-      ros::names::resolve("imu") + "/rpy/pose", 5);
   }
 
   // **** register subscribers
@@ -140,18 +168,11 @@ void ImuFilterRos::imuCallback(const ImuMsg::ConstPtr& imu_msg_raw)
   ros::Time time = imu_msg_raw->header.stamp;
   imu_frame_ = imu_msg_raw->header.frame_id;
 
-  if (!initialized_)
+  if (!initialized_ || stateless_)
   {
-    // initialize roll/pitch orientation from acc. vector
-    double sign = copysignf(1.0, lin_acc.z);
-    double roll = atan2(lin_acc.y, sign * sqrt(lin_acc.x*lin_acc.x + lin_acc.z*lin_acc.z));
-    double pitch = -atan2(lin_acc.x, sqrt(lin_acc.y*lin_acc.y + lin_acc.z*lin_acc.z));
-    double yaw = 0.0;
-
-    tf2::Quaternion init_q;
-    init_q.setRPY(roll, pitch, yaw);
-
-    filter_.setOrientation(init_q.getW(), init_q.getX(), init_q.getY(), init_q.getZ());
+    geometry_msgs::Quaternion init_q;
+    StatelessOrientation::computeOrientation(world_frame_, lin_acc, init_q);
+    filter_.setOrientation(init_q.w, init_q.x, init_q.y, init_q.z);
 
     // initialize time
     last_time_ = time;
@@ -167,10 +188,11 @@ void ImuFilterRos::imuCallback(const ImuMsg::ConstPtr& imu_msg_raw)
 
   last_time_ = time;
 
-  filter_.madgwickAHRSupdateIMU(
-    ang_vel.x, ang_vel.y, ang_vel.z,
-    lin_acc.x, lin_acc.y, lin_acc.z,
-    dt);
+  if (!stateless_)
+    filter_.madgwickAHRSupdateIMU(
+      ang_vel.x, ang_vel.y, ang_vel.z,
+      lin_acc.x, lin_acc.y, lin_acc.z,
+      dt);
 
   publishFilteredMsg(imu_msg_raw);
   if (publish_tf_)
@@ -191,15 +213,16 @@ void ImuFilterRos::imuMagCallback(
   imu_frame_ = imu_msg_raw->header.frame_id;
 
   /*** Compensate for hard iron ***/
-  double mx = mag_fld.x - mag_bias_.x;
-  double my = mag_fld.y - mag_bias_.y;
-  double mz = mag_fld.z - mag_bias_.z;
+  geometry_msgs::Vector3 mag_compensated;
+  mag_compensated.x = mag_fld.x - mag_bias_.x;
+  mag_compensated.y = mag_fld.y - mag_bias_.y;
+  mag_compensated.z = mag_fld.z - mag_bias_.z;
 
-  float roll = 0.0;
-  float pitch = 0.0;
-  float yaw = 0.0;
+  double roll = 0.0;
+  double pitch = 0.0;
+  double yaw = 0.0;
 
-  if (!initialized_)
+  if (!initialized_ || stateless_)
   {
     // wait for mag message without NaN / inf
     if(!std::isfinite(mag_fld.x) || !std::isfinite(mag_fld.y) || !std::isfinite(mag_fld.z))
@@ -207,15 +230,9 @@ void ImuFilterRos::imuMagCallback(
       return;
     }
 
-    computeRPY(
-      lin_acc.x, lin_acc.y, lin_acc.z,
-      mx, my, mz,
-      roll, pitch, yaw);
-
-    tf2::Quaternion init_q;
-    init_q.setRPY(roll, pitch, yaw);
-
-    filter_.setOrientation(init_q.getW(), init_q.getX(), init_q.getY(), init_q.getZ());
+    geometry_msgs::Quaternion init_q;
+    StatelessOrientation::computeOrientation(world_frame_, lin_acc, mag_compensated, init_q);
+    filter_.setOrientation(init_q.w, init_q.x, init_q.y, init_q.z);
 
     last_time_ = time;
     initialized_ = true;
@@ -230,24 +247,25 @@ void ImuFilterRos::imuMagCallback(
 
   last_time_ = time;
 
-  filter_.madgwickAHRSupdate(
-    ang_vel.x, ang_vel.y, ang_vel.z,
-    lin_acc.x, lin_acc.y, lin_acc.z,
-    mx, my, mz,
-    dt);
+  if (!stateless_)
+    filter_.madgwickAHRSupdate(
+      ang_vel.x, ang_vel.y, ang_vel.z,
+      lin_acc.x, lin_acc.y, lin_acc.z,
+      mag_compensated.x, mag_compensated.y, mag_compensated.z,
+      dt);
 
   publishFilteredMsg(imu_msg_raw);
   if (publish_tf_)
     publishTransform(imu_msg_raw);
 
-  if(publish_debug_topics_ && std::isfinite(mx) && std::isfinite(my) && std::isfinite(mz))
+  if(publish_debug_topics_)
   {
-    computeRPY(
-      lin_acc.x, lin_acc.y, lin_acc.z,
-      mx, my, mz,
-      roll, pitch, yaw);
-
-    publishRawMsg(time, roll, pitch, yaw);
+    geometry_msgs::Quaternion orientation;
+    if (StatelessOrientation::computeOrientation(world_frame_, lin_acc, mag_compensated, orientation))
+    {
+      tf2::Matrix3x3(tf2::Quaternion(orientation.x, orientation.y, orientation.z, orientation.w)).getRPY(roll, pitch, yaw, 0);
+      publishRawMsg(time, roll, pitch, yaw);
+    }
   }
 }
 
@@ -311,17 +329,6 @@ void ImuFilterRos::publishFilteredMsg(const ImuMsg::ConstPtr& imu_msg_raw)
 
     rpy.header = imu_msg_raw->header;
     rpy_filtered_debug_publisher_.publish(rpy);
-    
-    geometry_msgs::Pose poseMsg;
-    poseMsg.position.x = 0;
-    poseMsg.position.y = 0;
-    poseMsg.position.z = 0;
-    poseMsg.orientation.x = q1;
-    poseMsg.orientation.y = q2;
-    poseMsg.orientation.z = q3;
-    poseMsg.orientation.w = q0;
-    rpy_pose_publisher.publish(poseMsg);
-  
   }
 }
 
@@ -337,26 +344,6 @@ void ImuFilterRos::publishRawMsg(const ros::Time& t,
   rpy_raw_debug_publisher_.publish(rpy);
 }
 
-void ImuFilterRos::computeRPY(
-  float ax, float ay, float az,
-  float mx, float my, float mz,
-  float& roll, float& pitch, float& yaw)
-{
-  // initialize roll/pitch orientation from acc. vector.
-  double sign = copysignf(1.0, az);
-  roll = atan2(ay, sign * sqrt(ax*ax + az*az));
-  pitch = -atan2(ax, sqrt(ay*ay + az*az));
-  double cos_roll = cos(roll);
-  double sin_roll = sin(roll);
-  double cos_pitch = cos(pitch);
-  double sin_pitch = sin(pitch);
-
-  // initialize yaw orientation from magnetometer data.
-  /***  From: http://cache.freescale.com/files/sensors/doc/app_note/AN4248.pdf (equation 22). ***/
-  double head_x = mx * cos_pitch + my * sin_pitch * sin_roll + mz * sin_pitch * cos_roll;
-  double head_y = my * cos_roll - mz * sin_roll;
-  yaw = atan2(-head_y, head_x);
-}
 
 void ImuFilterRos::reconfigCallback(FilterConfig& config, uint32_t level)
 {

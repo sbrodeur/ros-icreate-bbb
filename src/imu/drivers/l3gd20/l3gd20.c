@@ -664,6 +664,8 @@ static int l3gd20_gyr_get_data(struct l3gd20_gyr_status *stat,
 	hw_d[1] = (s32) ((s16)((gyro_out[3]) << 8) | gyro_out[2]);
 	hw_d[2] = (s32) ((s16)((gyro_out[5]) << 8) | gyro_out[4]);
 
+	// NOTE: this seems to be commented to avoid overflows, which means
+	///      the listener to the event must multiply manually by the sensitivity.
 	//hw_d[0] = hw_d[0] * stat->sensitivity;
 	//hw_d[1] = hw_d[1] * stat->sensitivity;
 	//hw_d[2] = hw_d[2] * stat->sensitivity;

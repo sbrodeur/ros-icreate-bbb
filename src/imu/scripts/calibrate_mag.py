@@ -29,11 +29,15 @@
 # OF SUCH DAMAGE.
 
 import os
+import time
 import logging
 import numpy as np
 from optparse import OptionParser
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+
+import rospy
+from sensor_msgs.msg import MagneticField
 
 logger = logging.getLogger(__name__)
 
@@ -110,21 +114,72 @@ def calculateSoftIronXY(data):
     
     return Rxy, factorx, factory
 
+class DataRecorder:
+    
+    def __init__(self):
+        self.data = []
+  
+        input = rospy.get_param('~input', '/imu/mag')
+        rospy.Subscriber(input, MagneticField, self.callback)
+  
+    def callback(self, msg):
+        vector = np.array([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z], dtype=np.float64)
+        self.data.append(vector)
+        
+    def spin(self, timeout=None):
+        
+        startTime = time.time()
+        try:
+            rospy.init_node('calibrate_mag', log_level=rospy.INFO)
+            
+            rospy.loginfo('Recording started')
+            while not rospy.is_shutdown():
+                elapsed = time.time() - startTime
+                if timeout is not None and elapsed > timeout:
+                    break
+                time.sleep(0.25)
+    
+        except rospy.ROSInterruptException: pass
+        except KeyboardInterrupt: pass
+        
+        rospy.loginfo('Recording stopped')
+        
+    def getData(self):
+        return np.array(self.data)
+
 def main(args=None):
 
     parser = OptionParser()
     parser.add_option("-i", "--input", dest="input", default=None,
                       help='specify the path of the input cvs file')
+    parser.add_option("-o", "--output", dest="output", default=None,
+                      help='specify the path of the output cvs file')
     parser.add_option("-d", "--display-data",
                       action="store_true", dest="displayData", default=False,
                       help="Display the raw and converted data")
     (options,args) = parser.parse_args(args=args)
 
-    cvsPath = os.path.abspath(options.input)
-    logger.info('Using input cvs file: %s' % (cvsPath))
+    if options.input == None:
+        recorder = DataRecorder()
+        recorder.spin()
+        data = recorder.getData()
 
-    # Load data from the cvs file
-    data = np.loadtxt(open(cvsPath,"r"), delimiter=",")
+        outputCvsPath = os.path.abspath(options.output)
+        logger.info('Using output cvs file: %s' % (outputCvsPath))
+        np.savetxt(outputCvsPath, data, delimiter=",")
+    else:
+        # Load data from the cvs file
+        inputCvsPath = os.path.abspath(options.input)
+        logger.info('Using input cvs file: %s' % (inputCvsPath))
+        with open(inputCvsPath,"r") as f:
+            data = np.loadtxt(f, delimiter=",")
+    
+    rospy.loginfo('Number of input data points: %d' % (data.shape[0]))
+    
+    # Compute the offset (based on median)
+    offset = np.min(data, axis=0, keepdims=True) + 0.5 * (np.max(data, axis=0, keepdims=True) -
+                                                          np.min(data, axis=0, keepdims=True))
+    data -= offset
     
     Rz = calculateBankAngleZ(data)
     Rxy, factorx, factory = calculateSoftIronXY(data)
@@ -143,17 +198,18 @@ def main(args=None):
     # Calculate ranges
     xmin, ymin, zmin = np.min(newdata, axis=0)
     xmax, ymax, zmax = np.max(newdata, axis=0)
-    logger.info('X scale: %f, %f (range of %f)' % (xmin, xmax, xmax - xmin))
-    logger.info('Y scale: %f, %f (range of %f)' % (ymin, ymax, ymax - ymin))
-    logger.info('Z scale: %f, %f (range of %f)' % (zmin, zmax, zmax - zmin))
+    rospy.loginfo('X scale: %f, %f (range of %f)' % (xmin, xmax, xmax - xmin))
+    rospy.loginfo('Y scale: %f, %f (range of %f)' % (ymin, ymax, ymax - ymin))
+    rospy.loginfo('Z scale: %f, %f (range of %f)' % (zmin, zmax, zmax - zmin))
     limits = [0.9*min(xmin, ymin), 1.1*max(xmax, ymax)]
     
-    logger.info('Use this rotation matrix to correct for bank angle (z axis): \n ' + str(Rz))
-    logger.info('Use this rotation matrix to correct for soft-iron effects (x and y axis): \n ' + str(Rxy))
-    logger.info('Use these factors to correct for soft-iron effects (x-y plane): \n ' + str(factors))
+    rospy.loginfo('Use this offset vector to correct for offset (x, y, x axes): \n ' + str(np.squeeze(offset)))
+    rospy.loginfo('Use this rotation matrix to correct for bank angle (z axis): \n ' + str(Rz))
+    rospy.loginfo('Use this rotation matrix to correct for soft-iron effects (x and y axis): \n ' + str(Rxy))
+    rospy.loginfo('Use these factors to correct for soft-iron effects (x-y plane): \n ' + str(factors))
     
     if options.displayData:
-        fig = plt.figure(facecolor='white')
+        fig = plt.figure(figsize=(10,10),facecolor='white')
         ax = fig.add_subplot(111, projection='3d')
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
@@ -173,7 +229,7 @@ def main(args=None):
         ax.legend()
         plt.show()
         
-    logger.info('All done.')
+    rospy.loginfo('All done.')
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)

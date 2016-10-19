@@ -1,6 +1,6 @@
 <package>
   <name>imu_filter_madgwick</name>
-  <version>1.1.0</version>
+  <version>1.0.13</version>
   <description>  
   Filter which fuses angular velocities, accelerations, and (optionally) magnetic readings from a generic IMU device into an orientation. Based on code by Sebastian Madgwick, http://www.x-io.co.uk/node/8#open_source_ahrs_and_imu_algorithms.
   </description>
@@ -16,6 +16,7 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>tf2</build_depend>
+  <build_depend>tf2_geometry_msgs</build_depend>
   <build_depend>tf2_ros</build_depend>
   <build_depend>pluginlib</build_depend>
   <build_depend>message_filters</build_depend>
@@ -25,11 +26,12 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>tf2</run_depend>
+  <run_depend>tf2_geometry_msgs</run_depend>
   <run_depend>tf2_ros</run_depend>
   <run_depend>pluginlib</run_depend>
   <run_depend>message_filters</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>
 
-</package>
 
+</package>
 

@@ -72,7 +72,7 @@ class RealtimeMagneticFieldPlotter:
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         ax.set_zlabel("z")
-        ax.view_init(elev=90.0, azim=90.0)
+        ax.view_init(elev=45.0, azim=45.0)
         
         self.fig = fig
         self.ax = ax

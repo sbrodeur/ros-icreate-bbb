@@ -52,15 +52,13 @@ class RealtimeImuPlotter:
         ax1.grid(True)
         ax1.set_title("Realtime Accelerometer Plot")
         ax1.set_xlabel("Time")
-        ax1.set_ylabel("Amplitude")
-        ax1.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
+        ax1.set_ylabel("Linear acceleration [m/s^2]")
 
         ax2 = fig.add_subplot(212)
         ax2.grid(True)
         ax2.set_title("Realtime Gyroscope Plot")
         ax2.set_xlabel("Time")
-        ax2.set_ylabel("Amplitude")
-        ax2.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
+        ax2.set_ylabel("Angular velocity [rad/sec]")
 
         self.fig = fig
         self.axes = [ax1, ax2]
@@ -74,6 +72,9 @@ class RealtimeImuPlotter:
         self.lines.append(ax2.plot(xdata,ydata,'-r'))
         self.lines.append(ax2.plot(xdata,ydata,'-g'))
         self.lines.append(ax2.plot(xdata,ydata,'-b'))
+        
+        ax1.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
+        ax2.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
         
         input = rospy.get_param('~input', '/imu/data_raw')
         rospy.Subscriber(input, Imu, RealtimeImuPlotter.callback, self)
@@ -89,7 +90,9 @@ class RealtimeImuPlotter:
              
                 # Update existing line plots
                 self.lines[i][0].set_data(xdata,ydata)
-                self.axes[i/3].axis([xdata.min(),xdata.max(),ydata.min(),ydata.max()])
+            
+            self.axes[0].axis([xdata.min(),xdata.max(),np.min(self.data[:,:3]),np.max(self.data[:,:3])])
+            self.axes[1].axis([xdata.min(),xdata.max(),np.min(self.data[:,3:]),np.max(self.data[:,3:])])
             
             self.fig.canvas.draw() 
         except Queue.Empty:
@@ -102,7 +105,8 @@ class RealtimeImuPlotter:
                               data.angular_velocity.x, data.angular_velocity.y, data.angular_velocity.z]]);
             self.q.put(data)
         else:
-            rospy.logwarn('Plotting queue is full!')
+            pass
+            #rospy.logwarn('Plotting queue is full!')
         
 if __name__ == '__main__':
     

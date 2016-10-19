@@ -55,6 +55,7 @@ class CaptureNode {
         std::string outputMag_;
         std::string deviceMag_;
         double rate_;
+        bool calibrate_;
 
         AxisData dataMag_;
 
@@ -65,6 +66,8 @@ class CaptureNode {
         	node_.param("outputMag", outputMag_, std::string("/imu/mag"));
         	node_.param("deviceMag", deviceMag_, std::string("/dev/lsm303d_mag"));
         	node_.param("rate", rate_, 15.0);
+        	node_.param("calibrate", calibrate_, false);
+
 
         	// Adapted from: http://stackoverflow.com/questions/28841139/how-to-get-coordinates-of-touchscreen-rawdata-using-linux
 
@@ -78,9 +81,15 @@ class CaptureNode {
 			/* Print magnetometer device name */
 			char nameMag[256] = "Unknown";
 			ioctl(fdMag_, EVIOCGNAME(sizeof(nameMag)), nameMag);
-			printf("Reading from accelerometer:\n");
+			printf("Reading from magnetometer:\n");
 			printf("device file = %s\n", deviceMag_.c_str());
 			printf("device name = %s\n", nameMag);
+
+			if (calibrate_){
+				printf("calibration = true\n");
+			}else{
+				printf("calibration = false\n");
+			}
 
 			/*
 			    lms303_.setMagDataRate(DR_MAG_100HZ);
@@ -122,62 +131,61 @@ class CaptureNode {
 			return dataReady;
         }
 
-        sensor_msgs::MagneticField applyMagneticCorrection(const sensor_msgs::MagneticField& iCaptured){
-			sensor_msgs::MagneticField wNewMagField = iCaptured;
+        void applyMagneticCorrection(sensor_msgs::MagneticField& msg){
 
 			//Correction constants
-			const float magRotz[3][3] = { {        1.0,        0.0, 0.00703476  } ,
-										  {        0.0,        1.0,-0.07186357  } ,
-										  {-0.00698555, 0.07744466,        1.0  } };
+			const float magRotz[3][3] = { {        1.0,        0.0, -0.06722939  } ,
+										  {        0.0,        1.0,-0.00410318  } ,
+										  {0.07208762, 0.00412011,        1.0  } };
 
-			const float magRotxy[3][3] = { {-0.74874188, 0.66286168,        0.0  } ,
-										   {-0.66286168,-0.74874188,        0.0  } ,
+			const float magRotxy[3][3] = { {-0.716796,-0.69728293,        0.0  } ,
+										   {0.69728293,-0.716796,        0.0  } ,
 										   {        0.0,        0.0,        1.0  } };
-			const float magFacxy[2] = { 0.93773639, 1.07111999};
+			const float magFacxy[2] = { 0.93515957, 1.07450191};
 
-			const float xOffset =  0.00002768;
-			const float yOffset = -0.00000528;
-
-			//Apply bank correction
-			float flatMagFieldx = magRotz[0][0]*iCaptured.magnetic_field.x +
-								  magRotz[0][1]*iCaptured.magnetic_field.y +
-								  magRotz[0][2]*iCaptured.magnetic_field.z  ;
-			float flatMagFieldy = magRotz[1][0]*iCaptured.magnetic_field.x +
-								  magRotz[1][1]*iCaptured.magnetic_field.y +
-								  magRotz[1][2]*iCaptured.magnetic_field.z  ;
-			float flatMagFieldz = magRotz[2][0]*iCaptured.magnetic_field.x +
-								  magRotz[2][1]*iCaptured.magnetic_field.y +
-								  magRotz[2][2]*iCaptured.magnetic_field.z  ;
-			//Apply soft-iron correction
-
-			float siCorrx = magRotxy[0][0]*flatMagFieldx +
-							magRotxy[0][1]*flatMagFieldy +
-							magRotxy[0][2]*flatMagFieldz  ;
-			float siCorry = magRotxy[1][0]*flatMagFieldx +
-							magRotxy[1][1]*flatMagFieldy +
-							magRotxy[1][2]*flatMagFieldz  ;
-			float siCorrz = magRotxy[2][0]*flatMagFieldx +
-							magRotxy[2][1]*flatMagFieldy +
-							magRotxy[2][2]*flatMagFieldz  ;
-
-			siCorrx *= magFacxy[0];
-			siCorry *= magFacxy[1];
-
-			wNewMagField.magnetic_field.x = magRotxy[0][0]*siCorrx +
-											magRotxy[1][0]*siCorry +
-											magRotxy[2][0]*siCorrz  ;
-			wNewMagField.magnetic_field.y = magRotxy[0][1]*siCorrx +
-											magRotxy[1][1]*siCorry +
-											magRotxy[2][1]*siCorrz  ;
-			wNewMagField.magnetic_field.z = magRotxy[0][2]*siCorrx +
-											magRotxy[1][2]*siCorry +
-											magRotxy[2][2]*siCorrz  ;
+			const float xOffset = 0.000003628;
+			const float yOffset = 0.00003196;
+			const float zOffset = -0.000032072;
 
 			//Apply centering offsets (hard-iron correction)
-			wNewMagField.magnetic_field.x += xOffset;
-			wNewMagField.magnetic_field.y += yOffset;
+			msg.magnetic_field.x -= xOffset;
+			msg.magnetic_field.y -= yOffset;
+			msg.magnetic_field.z -= zOffset;
 
-			return wNewMagField;
+			//Apply bank correction
+			msg.magnetic_field.x = magRotz[0][0]*msg.magnetic_field.x +
+								   magRotz[0][1]*msg.magnetic_field.y +
+								   magRotz[0][2]*msg.magnetic_field.z  ;
+			msg.magnetic_field.y = magRotz[1][0]*msg.magnetic_field.x +
+								   magRotz[1][1]*msg.magnetic_field.y +
+								   magRotz[1][2]*msg.magnetic_field.z  ;
+			msg.magnetic_field.z = magRotz[2][0]*msg.magnetic_field.x +
+								   magRotz[2][1]*msg.magnetic_field.y +
+								   magRotz[2][2]*msg.magnetic_field.z  ;
+
+//			//Apply soft-iron correction
+//			msg.magnetic_field.x = magRotxy[0][0]*msg.magnetic_field.x +
+//								   magRotxy[0][1]*msg.magnetic_field.y +
+//							       magRotxy[0][2]*msg.magnetic_field.z  ;
+//			msg.magnetic_field.y = magRotxy[1][0]*msg.magnetic_field.x +
+//								   magRotxy[1][1]*msg.magnetic_field.y +
+//								   magRotxy[1][2]*msg.magnetic_field.z  ;
+//			msg.magnetic_field.z = magRotxy[2][0]*msg.magnetic_field.x +
+//								   magRotxy[2][1]*msg.magnetic_field.y +
+//								   magRotxy[2][2]*msg.magnetic_field.z  ;
+//
+//			msg.magnetic_field.x *= magFacxy[0];
+//			msg.magnetic_field.y *= magFacxy[1];
+//
+//			msg.magnetic_field.x = magRotxy[0][0]*msg.magnetic_field.x +
+//								   magRotxy[1][0]*msg.magnetic_field.y +
+//								   magRotxy[2][0]*msg.magnetic_field.z  ;
+//			msg.magnetic_field.y = magRotxy[0][1]*msg.magnetic_field.x +
+//								   magRotxy[1][1]*msg.magnetic_field.y +
+//								   magRotxy[2][1]*msg.magnetic_field.z  ;
+//			msg.magnetic_field.z = magRotxy[0][2]*msg.magnetic_field.x +
+//								   magRotxy[1][2]*msg.magnetic_field.y +
+//								   magRotxy[2][2]*msg.magnetic_field.z  ;
 		}
 
         bool spin() {
@@ -199,12 +207,15 @@ class CaptureNode {
 				msgMag.header.stamp = ros::Time::now();
 				msgMag.header.frame_id = "imu_link";
 
-				// Y -> North X -> East, inverted values for IMU consolidator
-				msgMag.magnetic_field.x = ((double) dataMag_.x)/1000000 /10000.0;
-				msgMag.magnetic_field.y = ((double) dataMag_.y)/1000000 /10000.0;
+				// NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
+				// NOTE: inverted x and y axis intentional since lsm303d and l3dg20 were not using same axis reference on IMU board.
+				msgMag.magnetic_field.x = ((double) dataMag_.y)/1000000 /10000.0;
+				msgMag.magnetic_field.y = -((double) dataMag_.x)/1000000 /10000.0;
 				msgMag.magnetic_field.z = ((double) dataMag_.z)/1000000 /10000.0;
 
-				msgMag = applyMagneticCorrection(msgMag);
+				if (calibrate_){
+					applyMagneticCorrection(msgMag);
+				}
 				pubMag_.publish(msgMag);
 
                 rate.sleep();

@@ -44,6 +44,10 @@ using namespace std;
 #define G_ACC   9.81
 #define PI  3.14159
 
+#define SENSITIVITY_250		8750		/*	udps/LSB */
+#define SENSITIVITY_500		17500		/*	udps/LSB */
+#define SENSITIVITY_2000	70000		/*	udps/LSB */
+
 struct AxisData{
 	int x;
 	int y;
@@ -205,19 +209,21 @@ class CaptureNode {
                 msgPos.orientation.z = 0;
                 msgPos.orientation.w = 0;
                 
-                //Convert to from udps to rad/sec
-                //NOTE inverted x and y axis intentional. lms303 and Gyro 
-                // were not using same axis reference
-
-                msgPos.angular_velocity.y = -(((double)dataGyro_.x) / 1000000/180)*PI;
-                msgPos.angular_velocity.x =  (((double)dataGyro_.y) / 1000000/180)*PI;
-                msgPos.angular_velocity.z = -(((double)dataGyro_.z) / 1000000/180)*PI;
+                // Convert to from udps to rad/sec
+                // NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
+                msgPos.angular_velocity.x =  (((double)dataGyro_.x) * SENSITIVITY_250/1000000.0 * PI/180.0);
+                msgPos.angular_velocity.y =  (((double)dataGyro_.y) * SENSITIVITY_250/1000000.0 * PI/180.0);
+                msgPos.angular_velocity.z =  (((double)dataGyro_.z) * SENSITIVITY_250/1000000.0 * PI/180.0);
                 //msg.angular_velocity_covariance    = ;
                 
-                //Convert from ug to m/s^2
-                msgPos.linear_acceleration.x = -G_ACC*((double)dataAccel_.x) / 1000000;
-                msgPos.linear_acceleration.y = -G_ACC*((double)dataAccel_.y) / 1000000;
-                msgPos.linear_acceleration.z = -G_ACC*((double)dataAccel_.z) / 1000000;
+                // Convert from ug to m/s^2
+                // NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
+                // NOTE: the accelerometer measures the inertial force, which is the negative of the acceleration force.
+                //	     Because the imu madgwick filter expects inertial forces, we don't apply this negation.
+                // NOTE: inverted x and y axis intentional since lsm303d and l3dg20 were not using same axis reference on IMU board.
+                msgPos.linear_acceleration.x = G_ACC*((double)dataAccel_.y) / 1000000;
+                msgPos.linear_acceleration.y =  -G_ACC*((double)dataAccel_.x) / 1000000;
+                msgPos.linear_acceleration.z = G_ACC*((double)dataAccel_.z) / 1000000;
                 //msg.linear_acceleration_covariance = ;
 
                 pubPos_.publish(msgPos);

@@ -75,15 +75,16 @@ class ImuFilterRos
 
     ros::Publisher rpy_filtered_debug_publisher_;
     ros::Publisher rpy_raw_debug_publisher_;
-    ros::Publisher rpy_pose_publisher;
     ros::Publisher imu_publisher_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
 
     boost::shared_ptr<FilterConfigServer> config_server_;
 
     // **** paramaters
+    WorldFrame::WorldFrame world_frame_;
     bool use_mag_;
     bool use_magnetic_field_msg_;
+    bool stateless_;
     bool publish_tf_;
     bool reverse_tf_;
     std::string fixed_frame_;
@@ -116,10 +117,6 @@ class ImuFilterRos
                        float roll, float pitch, float yaw);
 
     void reconfigCallback(FilterConfig& config, uint32_t level);
-
-    void computeRPY(float ax, float ay, float az,
-                    float mx, float my, float mz,
-                    float& roll, float& pitch, float& yaw);
 };
 
 #endif // IMU_FILTER_IMU_MADWICK_FILTER_ROS_H
