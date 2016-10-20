@@ -225,7 +225,7 @@ class CaptureNode {
 };
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "capture");
+    ros::init(argc, argv, "capture_mag");
 
     CaptureNode a;
     a.spin();

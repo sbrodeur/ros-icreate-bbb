@@ -39,7 +39,7 @@
 using namespace std;
 
 
-class CaptureNodeBMP {
+class CaptureNode {
 
     public:
         ros::NodeHandle node_;
@@ -57,7 +57,7 @@ class CaptureNodeBMP {
 
         double rate_;
 
-        CaptureNodeBMP() :
+        CaptureNode() :
             node_("~") {
 
                 std::string deviceLoc ;
@@ -86,7 +86,7 @@ class CaptureNodeBMP {
 
             }
 
-        virtual ~CaptureNodeBMP() {
+        virtual ~CaptureNode() {
             // Close files
             mTempFile.close();
             mPresFile.close();
@@ -147,9 +147,9 @@ class CaptureNodeBMP {
 };
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "captureBMP");
+    ros::init(argc, argv, "capture_baro");
 
-    CaptureNodeBMP a;
+    CaptureNode a;
     a.spin();
     return 0;
 }

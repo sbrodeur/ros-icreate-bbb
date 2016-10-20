@@ -2,11 +2,10 @@
 
 <node name="irobot_create" pkg="create" type="create_driver" output="screen" >
 	<param name="dev" value="/dev/ttyS1" />
-	<param name="serial_mode" value="auto" />
 	<param name="latch_cmd_duration" value="1000.0" />
-	<param name="publish_tf" value="True" />
 	<param name="safety" value="True" />
-    <param name="rate" value="20.0" />
+    <param name="rate" value="50.0" />
+    <param name="serial_mode" value="streaming" />
 </node>
 
 <node name="video_left" pkg="camera" type="camera_capture" output="screen">
@@ -53,6 +52,13 @@
     <param name="output" value="/audio/right/raw" />
 </node>
 
+<node name="odometry" pkg="create" type="create_odometry" output="screen" >
+	<param name="input_joints" value="/irobot_create/joints" />
+	<param name="input_imu" value="/imu/data" />
+	<param name="publish_tf" value="True" />
+	<param name="queue_size" value="10" />
+</node>
+
 <node name="imu_acc_gyro" pkg="imu" type="imu_capture_acc_gyro" output="screen">
     <param name="outputPos" value="/imu/data_raw" />
     <param name="deviceAccel" value="/dev/lsm303d_acc" />
@@ -64,25 +70,18 @@
     <param name="outputPos" value="/imu/mag" />
     <param name="deviceMag" value="/dev/lsm303d_mag" />
     <param name="rate" value="100.0" />
+    <param name="calibrate" value="True" />
 </node>
 
-<node name="imu_bmp" pkg="imu" type="imu_captureBMP" output="screen" >
-    <param name="deviceLocation" value="/sys/bus/i2c/drivers/bmp085/2-0077" />        
-    <param name="tempProbe" value="/temp0_input" />
-    <param name="presProbe" value="/pressure0_input" />
-    <param name="rateHz" value="15.0" />
-    <param name="outputTemp" value="/imu/temp" />
-    <param name="outputPres" value="/imu/pres" />
-</node>
-
-<node name="madgwick" pkg="imu_filter_madgwick" type="imu_filter_node" output="screen" >
-    <param name="world_frame" value="enu"/>
+<node name="imu_madgwick" pkg="imu_filter_madgwick" type="imu_filter_node" output="screen" >
+    <param name="world_frame" value="nwu"/>
     <param name="use_mag" value="True"/>
+    <param name="use_magnetic_field_msg" value="True"/>
     <param name="publish_tf" value="True"/>
     <param name="reverse_tf" value="False"/>
-    <param name="fixed_frame" value="True"/>
+    <param name="fixed_frame" value="odom"/>
     <param name="publish_debug_topics" value="False"/>
-    <param name="use_magnetic_field_msg" value="True"/>
+    <param name="stateless" value="False"/>
 </node>
 
 <!--node name="autonomous" pkg="action" type="autonomous_control.py" output="screen"

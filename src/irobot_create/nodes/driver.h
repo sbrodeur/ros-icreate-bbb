@@ -43,7 +43,6 @@ private:
   std::string dev_;
   int baud_;
   double latch_duration_;
-  bool publish_tf_;
   bool safety_;
 
   void cmdVelCallback(const create::MotorSpeed& msg);

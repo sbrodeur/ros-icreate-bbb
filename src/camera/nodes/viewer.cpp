@@ -89,7 +89,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
 int main(int argc, char** argv)
 {
-  ros::init(argc, argv, "viewer");
+  ros::init(argc, argv, "viewer_camera");
 
   ImageViewer iv;
   

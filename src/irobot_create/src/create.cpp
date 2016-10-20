@@ -96,7 +96,7 @@ namespace create {
 
     // Read raw velocities (mm/sec)
     int16_t leftWheelVelRaw = getRequestedLeftWheelVel();
-    int16_t rightWheelVelRaw = getRequestedLeftWheelVel();
+    int16_t rightWheelVelRaw = getRequestedRightWheelVel();
 
 	// Convert from mm/sec to m/sec, then estimate distance based on timestamps
 	leftWheelDist = ((float)leftWheelVelRaw) / 1000.0 * dt;

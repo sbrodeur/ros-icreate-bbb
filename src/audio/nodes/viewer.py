@@ -91,7 +91,7 @@ class RealtimePlotter:
 if __name__ == '__main__':
     
     try:
-        rospy.init_node('viewer')
+        rospy.init_node('viewer_audio')
         plt = RealtimePlotter()
         
         while not rospy.is_shutdown():

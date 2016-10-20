@@ -17,7 +17,6 @@ find_package(PkgConfig REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
   CATKIN_DEPENDS message_runtime
   LIBRARIES ${PROJECT_NAME}
 )
@@ -30,38 +29,23 @@ include_directories(include
   ${catkin_INCLUDE_DIRS}
 )
 
-## Build the imu library
-add_library(${PROJECT_NAME} src/L3GD20Gyro.cpp src/LMS303.cpp)
-target_link_libraries(${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
-
 ## Declare a cpp executable
-add_executable(${PROJECT_NAME}_capture nodes/capture.cpp )
-add_dependencies(${PROJECT_NAME}_capture ${PROJECT_NAME}_gencpp)
-target_link_libraries(${PROJECT_NAME}_capture
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
 
 add_executable(${PROJECT_NAME}_capture_acc_gyro nodes/capture_acc_gyro.cpp )
 add_dependencies(${PROJECT_NAME}_capture_acc_gyro ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME}_capture_acc_gyro
-  ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
 add_executable(${PROJECT_NAME}_capture_mag nodes/capture_mag.cpp )
 add_dependencies(${PROJECT_NAME}_capture_mag ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME}_capture_mag
-  ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
 
-add_executable(${PROJECT_NAME}_captureBMP nodes/captureBMP.cpp)
-add_dependencies(${PROJECT_NAME}_captureBMP ${PROJECT_NAME}_gencpp)
-target_link_libraries(${PROJECT_NAME}_captureBMP
-  ${PROJECT_NAME}
+add_executable(${PROJECT_NAME}_capture_baro nodes/capture_baro.cpp)
+add_dependencies(${PROJECT_NAME}_capture_baro ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_capture_baro
   ${catkin_LIBRARIES}
 )
 
@@ -69,23 +53,19 @@ target_link_libraries(${PROJECT_NAME}_captureBMP
 ## Install ##
 #############
 
-catkin_install_python(PROGRAMS
-  nodes/captureBMP.py
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
 
 ## Mark executables and/or libraries for installation
-install(TARGETS ${PROJECT_NAME}_capture ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME}_capture_acc_gyro
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
-install(TARGETS ${PROJECT_NAME}_captureBMP ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME}_capture_mag
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 
-install(DIRECTORY include/
-   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-   FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+install(TARGETS ${PROJECT_NAME}_capture_baro
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )

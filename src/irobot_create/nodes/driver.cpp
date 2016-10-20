@@ -17,7 +17,6 @@ CreateDriver::CreateDriver(ros::NodeHandle& nh)
   priv_nh_.param<double>("rate", rate_, 20.0);
   priv_nh_.param<std::string>("dev", dev_, "/dev/ttyUSB0");
   priv_nh_.param<double>("latch_cmd_duration", latch_duration_, 0.2);
-  priv_nh_.param<bool>("publish_tf", publish_tf_, true);
   priv_nh_.param<bool>("safety", safety_, true);
 
   create::SerialMode serialMode;

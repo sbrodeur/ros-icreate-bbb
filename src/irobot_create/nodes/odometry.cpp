@@ -74,19 +74,19 @@ class OdometryNode {
 	    ros::Time last_time_;
 	    bool publish_tf_;
 
-		float x_;
-		float y_;
-		float lastLeftWheelDist_;
-		float lastRightWheelDist_;
+		double x_;
+		double y_;
+		double lastLeftWheelDist_;
+		double lastRightWheelDist_;
 
         std::string inputJoints_;
         std::string inputImu_;
 
-        OdometryNode() : node_("~"){
+        OdometryNode() : node_("~"), initialized_(false){
 
         	int queue_size;
-        	node_.param("inputJoints", inputJoints_, std::string("/irobot_create/joints"));
-        	node_.param("inputImu", inputImu_, std::string("/imu/data"));
+        	node_.param("input_joints", inputJoints_, std::string("/irobot_create/joints"));
+        	node_.param("input_imu", inputImu_, std::string("/imu/data"));
         	node_.param("queue_size", queue_size, 10);
         	node_.param("publish_tf", publish_tf_, false);
 
@@ -96,6 +96,9 @@ class OdometryNode {
 			tf_odom_.child_frame_id = str_base_baselink;
 			odom_msg_.header.frame_id = "odom";
 			odom_msg_.child_frame_id = str_base_baselink;
+
+			imu_subscriber_.reset(new ImuSubscriber(node_, inputImu_, queue_size));
+			joint_subscriber_.reset(new JointStateSubscriber(node_, inputJoints_, queue_size));
 
 			sync_.reset(new Synchronizer(
 			  SyncPolicy(queue_size), *imu_subscriber_, *joint_subscriber_));
@@ -141,18 +144,21 @@ class OdometryNode {
 			y_ += deltaDist * sin(yaw);
 
 			// Populate position info
-			odom_msg_.header.stamp = ros::Time::now();
+			// NOTE: propagate timestamp from the message
+			odom_msg_.header.stamp = time;
 			odom_msg_.pose.pose.position.x = x_;
 			odom_msg_.pose.pose.position.y = y_;
 			odom_msg_.pose.pose.orientation = imu_msg->orientation;
 
-			// Populate velocity info
-			odom_msg_.twist.twist.linear.x = joint_state_msg->velocity[0] * wheelRadius;
-			odom_msg_.twist.twist.linear.y = joint_state_msg->velocity[1] * wheelRadius;
+			// Populate velocity info (in the frame of the robot)
+			double velocitiyForward = (joint_state_msg->velocity[0] + joint_state_msg->velocity[1]) * wheelRadius / 2.0;
+			odom_msg_.twist.twist.linear.x = velocitiyForward;
+			odom_msg_.twist.twist.linear.y = 0.0;
 			odom_msg_.twist.twist.angular = imu_msg->angular_velocity;
 
 			if (publish_tf_){
-				tf_odom_.header.stamp = ros::Time::now();
+				// NOTE: propagate timestamp from the message
+				tf_odom_.header.stamp = time;
 				tf_odom_.transform.translation.x = x_;
 				tf_odom_.transform.translation.y = y_;
 				tf_odom_.transform.rotation = imu_msg->orientation;
@@ -160,6 +166,10 @@ class OdometryNode {
 			}
 
 			odom_pub_.publish(odom_msg_);
+
+			last_time_ = time;
+			lastLeftWheelDist_ = leftWheelDist;
+			lastRightWheelDist_ = rightWheelDist;
         }
 
         bool spin() {
