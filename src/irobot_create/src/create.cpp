@@ -27,21 +27,10 @@ namespace create {
     checkLED = 0;
     powerLED = 0;
     powerLEDIntensity = 0;
-    prevTicksLeft = 0;
-    prevTicksRight = 0;
     totalLeftDist = 0.0;
     totalRightDist = 0.0;
     firstOnData = true;
     mode = MODE_OFF;
-    pose.x = 0;
-    pose.y = 0;
-    pose.yaw = 0;
-    pose.covariance = std::vector<float>(9, 0.0);
-    vel.x = 0;
-    vel.y = 0;
-    vel.yaw = 0;
-    vel.covariance = std::vector<float>(9, 0.0);
-    poseCovar = Matrix(3, 3, 0.0);
     data = boost::shared_ptr<Data>(new Data(model.getVersion()));
 
     if (serialMode == AUTO){
@@ -96,11 +85,6 @@ namespace create {
 
   void Create::onData() {
     if (firstOnData) {
-      if (model.getVersion() >= V_3) {
-        // Initialize tick counts
-        prevTicksLeft = GET_DATA(ID_LEFT_ENC);
-        prevTicksRight = GET_DATA(ID_RIGHT_ENC);
-      }
       prevOnDataTime = util::getTimestamp();
       firstOnData = false;
     }
@@ -108,167 +92,20 @@ namespace create {
     // Get current time
     util::timestamp_t curTime = util::getTimestamp();
     float dt = (curTime - prevOnDataTime) / 1000000.0;
-    float deltaDist, deltaX, deltaY, deltaYaw, leftWheelDist, rightWheelDist, wheelDistDiff;
+    float leftWheelDist, rightWheelDist;
 
-    // Protocol versions 1 and 2 use distance and angle fields for odometry
-    int16_t angleField;
-    if (model.getVersion() <= V_2) {
-      // This is a standards compliant way of doing unsigned to signed conversion
-      uint16_t distanceRaw = GET_DATA(ID_DISTANCE);
-      int16_t distance;
-      std::memcpy(&distance, &distanceRaw, sizeof(distance));
-      deltaDist = distance / 1000.0; // mm -> m
+    // Read raw velocities (mm/sec)
+    int16_t leftWheelVelRaw = getRequestedLeftWheelVel();
+    int16_t rightWheelVelRaw = getRequestedLeftWheelVel();
 
-      // Angle is processed differently in versions 1 and 2
-      uint16_t angleRaw = GET_DATA(ID_ANGLE);
-      std::memcpy(&angleField, &angleRaw, sizeof(angleField));
-    }
-
-    if (model.getVersion() == V_1) {
-      wheelDistDiff = 2.0 * angleField / 1000.0;
-      leftWheelDist = deltaDist - (wheelDistDiff / 2.0);
-      rightWheelDist = deltaDist + (wheelDistDiff / 2.0);
-      deltaYaw = wheelDistDiff / model.getAxleLength();
-    } else if (model.getVersion() == V_2) {
-      /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-       * Certain older Creates have major problems with odometry                   *
-       * http://answers.ros.org/question/31935/createroomba-odometry/              *
-       *                                                                           *
-       * All Creates have an issue with rounding of the angle field, which causes  *
-       * major errors to accumulate in the odometry yaw.                           *
-       * http://wiki.tekkotsu.org/index.php/Create_Odometry_Bug                    *
-       * https://github.com/AutonomyLab/create_autonomy/issues/28                  *
-       *                                                                           *
-       * TODO: Consider using velocity command as substitute for pose estimation   *
-       * to mitigate both of these problems.                                       *
-       * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-      deltaYaw = angleField * (util::PI / 180.0); // D2R
-      wheelDistDiff = model.getAxleLength() * deltaYaw;
-      leftWheelDist = deltaDist - (wheelDistDiff / 2.0);
-      rightWheelDist = deltaDist + (wheelDistDiff / 2.0);
-    } else if (model.getVersion() >= V_3) {
-      // Get cumulative ticks (wraps around at 65535)
-      uint16_t totalTicksLeft = GET_DATA(ID_LEFT_ENC);
-      uint16_t totalTicksRight = GET_DATA(ID_RIGHT_ENC);
-      // Compute ticks since last update
-      int ticksLeft = totalTicksLeft - prevTicksLeft;
-      int ticksRight = totalTicksRight - prevTicksRight;
-      prevTicksLeft = totalTicksLeft;
-      prevTicksRight = totalTicksRight;
-
-      // Handle wrap around
-      if (fabs(ticksLeft) > 0.9 * util::V_3_MAX_ENCODER_TICKS) {
-        ticksLeft = (ticksLeft % util::V_3_MAX_ENCODER_TICKS) + 1;
-      }
-      if (fabs(ticksRight) > 0.9 * util::V_3_MAX_ENCODER_TICKS) {
-        ticksRight = (ticksRight % util::V_3_MAX_ENCODER_TICKS) + 1;
-      }
-
-      // Compute distance travelled by each wheel
-      leftWheelDist = (ticksLeft / util::V_3_TICKS_PER_REV)
-          * model.getWheelDiameter() * util::PI;
-      rightWheelDist = (ticksRight / util::V_3_TICKS_PER_REV)
-          * model.getWheelDiameter() * util::PI;
-      deltaDist = (rightWheelDist + leftWheelDist) / 2.0;
-
-      wheelDistDiff = rightWheelDist - leftWheelDist;
-      deltaYaw = wheelDistDiff / model.getAxleLength();
-    }
-
-    // Moving straight
-    if (fabs(wheelDistDiff) < util::EPS) {
-      deltaX = deltaDist * cos(pose.yaw);
-      deltaY = deltaDist * sin(pose.yaw);
-    } else {
-      float turnRadius = (model.getAxleLength() / 2.0) * (leftWheelDist + rightWheelDist) / wheelDistDiff;
-      deltaX = turnRadius * (sin(pose.yaw + deltaYaw) - sin(pose.yaw));
-      deltaY = -turnRadius * (cos(pose.yaw + deltaYaw) - cos(pose.yaw));
-    }
+	// Convert from mm/sec to m/sec, then estimate distance based on timestamps
+	leftWheelDist = ((float)leftWheelVelRaw) / 1000.0 * dt;
+	rightWheelDist = ((float)rightWheelVelRaw) / 1000.0 * dt;
 
     totalLeftDist += leftWheelDist;
     totalRightDist += rightWheelDist;
 
-    if (fabs(dt) > util::EPS) {
-      vel.x = deltaDist / dt;
-      vel.y = 0.0;
-      vel.yaw = deltaYaw / dt;
-    } else {
-      vel.x = 0.0;
-      vel.y = 0.0;
-      vel.yaw = 0.0;
-    }
-
-    // Update covariances
-    // Ref: "Introduction to Autonomous Mobile Robots" (Siegwart 2004, page 189)
-    float kr = 1.0; // TODO: Perform experiments to find these nondeterministic parameters
-    float kl = 1.0;
-    float cosYawAndHalfDelta = cos(pose.yaw + (deltaYaw / 2.0)); // deltaX?
-    float sinYawAndHalfDelta = sin(pose.yaw + (deltaYaw / 2.0)); // deltaY?
-    float distOverTwoWB = deltaDist / (model.getAxleLength() * 2.0);
-
-    Matrix invCovar(2, 2);
-    invCovar(0, 0) = kr * fabs(rightWheelDist);
-    invCovar(0, 1) = 0.0;
-    invCovar(1, 0) = 0.0;
-    invCovar(1, 1) = kl * fabs(leftWheelDist);
-
-    Matrix Finc(3, 2);
-    Finc(0, 0) = (cosYawAndHalfDelta / 2.0) - (distOverTwoWB * sinYawAndHalfDelta);
-    Finc(0, 1) = (cosYawAndHalfDelta / 2.0) + (distOverTwoWB * sinYawAndHalfDelta);
-    Finc(1, 0) = (sinYawAndHalfDelta / 2.0) + (distOverTwoWB * cosYawAndHalfDelta);
-    Finc(1, 1) = (sinYawAndHalfDelta / 2.0) - (distOverTwoWB * cosYawAndHalfDelta);
-    Finc(2, 0) = (1.0 / model.getAxleLength());
-    Finc(2, 1) = (-1.0 / model.getAxleLength());
-    Matrix FincT = boost::numeric::ublas::trans(Finc);
-
-    Matrix Fp(3, 3);
-    Fp(0, 0) = 1.0;
-    Fp(0, 1) = 0.0;
-    Fp(0, 2) = (-deltaDist) * sinYawAndHalfDelta;
-    Fp(1, 0) = 0.0;
-    Fp(1, 1) = 1.0;
-    Fp(1, 2) = deltaDist * cosYawAndHalfDelta;
-    Fp(2, 0) = 0.0;
-    Fp(2, 1) = 0.0;
-    Fp(2, 2) = 1.0;
-    Matrix FpT = boost::numeric::ublas::trans(Fp);
-
-    Matrix velCovar = ublas::prod(invCovar, FincT);
-    velCovar = ublas::prod(Finc, velCovar);
-
-    vel.covariance[0] = velCovar(0, 0);
-    vel.covariance[1] = velCovar(0, 1);
-    vel.covariance[2] = velCovar(0, 2);
-    vel.covariance[3] = velCovar(1, 0);
-    vel.covariance[4] = velCovar(1, 1);
-    vel.covariance[5] = velCovar(1, 2);
-    vel.covariance[6] = velCovar(2, 0);
-    vel.covariance[7] = velCovar(2, 1);
-    vel.covariance[8] = velCovar(2, 2);
-
-    Matrix poseCovarTmp = ublas::prod(poseCovar, FpT);
-    poseCovarTmp = ublas::prod(Fp, poseCovarTmp);
-    poseCovar = addMatrices(poseCovarTmp, velCovar);
-
-    pose.covariance[0] = poseCovar(0, 0);
-    pose.covariance[1] = poseCovar(0, 1);
-    pose.covariance[2] = poseCovar(0, 2);
-    pose.covariance[3] = poseCovar(1, 0);
-    pose.covariance[4] = poseCovar(1, 1);
-    pose.covariance[5] = poseCovar(1, 2);
-    pose.covariance[6] = poseCovar(2, 0);
-    pose.covariance[7] = poseCovar(2, 1);
-    pose.covariance[8] = poseCovar(2, 2);
-
-    // Update pose
-    pose.x += deltaX;
-    pose.y += deltaY;
-    pose.yaw = util::normalizeAngle(pose.yaw + deltaYaw);
-
     prevOnDataTime = curTime;
-
-    // Make user registered callbacks, if any
-    // TODO
   }
 
   bool Create::connect(const std::string& port, const int& baud) {
@@ -1110,14 +947,6 @@ namespace create {
       mode = (create::CreateMode) GET_DATA(ID_OI_MODE);
     }
     return mode;
-  }
-
-  Pose Create::getPose() const {
-    return pose;
-  }
-
-  Vel Create::getVel() const {
-    return vel;
   }
 
   uint64_t Create::getNumCorruptPackets() const {

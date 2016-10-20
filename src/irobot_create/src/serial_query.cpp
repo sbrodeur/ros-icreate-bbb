@@ -12,7 +12,7 @@ namespace create {
     packetID(ID_BUMP_WHEELDROP),
     packetByte(0),
     packetData(0),
-    maxPacketID(ID_CAPACITY) {
+    maxPacketID(ID_LEFT_VEL) {
   }
 
   bool SerialQuery::startSensorStream() {
@@ -24,7 +24,7 @@ namespace create {
   }
 
   void SerialQuery::requestSensorData() {
-    static const uint8_t requestPacket[2] = { OC_SENSORS, ID_GROUP_0 };
+    static const uint8_t requestPacket[2] = { OC_SENSORS, ID_GROUP_6 };
     // Prevents previous packet from corrupting next one
     flushInput();
     send(requestPacket, 2);

@@ -61,6 +61,14 @@ target_link_libraries(${PROJECT_NAME}_driver
   ${Boost_LIBRARIES}
 )
 
+add_executable(${PROJECT_NAME}_odometry nodes/odometry.cpp)
+add_dependencies(${PROJECT_NAME}_odometry ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_odometry
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
+
 ## Install
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
 install(FILES
@@ -72,8 +80,8 @@ install(FILES
         include/create/util.h
         DESTINATION include/create)
 
-#install(TARGETS ${PROJECT_NAME}_driver ${PROJECT_NAME}
-#  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#)
+install(TARGETS ${PROJECT_NAME}_driver ${PROJECT_NAME}_odometry
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
         

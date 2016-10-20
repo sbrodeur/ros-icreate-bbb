@@ -58,14 +58,17 @@ CreateDriver::CreateDriver(ros::NodeHandle& nh)
 
   // Set frame_id's
   const std::string str_base_baselink("base_link");
-  tf_odom_.header.frame_id = "odom";
-  tf_odom_.child_frame_id = str_base_baselink;
-  odom_msg_.header.frame_id = "odom";
-  odom_msg_.child_frame_id = str_base_baselink;
   battery_msg_.header.frame_id = str_base_baselink;
   contact_msg_.header.frame_id = str_base_baselink;
   motors_msg_.header.frame_id = str_base_baselink;
   ir_range_msg_.header.frame_id = str_base_baselink;
+
+  joint_state_msg_.name.resize(2);
+  joint_state_msg_.position.resize(2);
+  joint_state_msg_.velocity.resize(2);
+  joint_state_msg_.effort.resize(2);
+  joint_state_msg_.name[0] = "left_wheel_joint";
+  joint_state_msg_.name[1] = "right_wheel_joint";
 
   // Setup services
   beep_srv_ = nh.advertiseService("/irobot_create/beep", &CreateDriver::beepSrvCallback, this);
@@ -76,11 +79,11 @@ CreateDriver::CreateDriver(ros::NodeHandle& nh)
   cmd_vel_sub_ = nh.subscribe("/irobot_create/cmd_raw", 1, &CreateDriver::cmdVelCallback, this);
 
   // Setup publishers
-  odom_pub_ = nh.advertise<nav_msgs::Odometry>("/irobot_create/odom", 30);
   battery_pub_ = nh.advertise<sensor_msgs::BatteryState>("/irobot_create/battery", 30);
   contact_pub_ = nh.advertise<create::Contact>("/irobot_create/contact", 30);
   motors_pub_ = nh.advertise<create::MotorSpeed>("/irobot_create/motors", 30);
   ir_range_pub_ = nh.advertise<create::IrRange>("/irobot_create/irRange", 30);
+  wheel_joint_pub_ = nh.advertise<sensor_msgs::JointState>("/irobot_create/joints", 30);
 
   // Setup diagnostics
   diagnostics_.add("Battery Status", this, &CreateDriver::updateBatteryDiagnostics);
@@ -229,7 +232,7 @@ bool CreateDriver::update()
 	applySafety();
   }
 
-  publishOdometryInfo();
+  publishJointInfo();
   publishContactInfo();
   publishBatteryInfo();
   publishMotorsInfo();
@@ -377,36 +380,17 @@ void CreateDriver::updateDriverDiagnostics(diagnostic_updater::DiagnosticStatusW
   }
 }
 
-void CreateDriver::publishOdometryInfo()
-{
-  create::Pose pose = robot_->getPose();
-  create::Vel vel = robot_->getVel();
+void CreateDriver::publishJointInfo() {
+    // Publish joint states
+    float wheelRadius = model_.getWheelDiameter() / 2.0;
 
-  // Populate position info
-  // NOTE: x and y axes are inversed (y is the forward direction)
-  geometry_msgs::Quaternion quat = tf::createQuaternionMsgFromRollPitchYaw(0, 0, pose.yaw);
-  odom_msg_.header.stamp = ros::Time::now();
-  odom_msg_.pose.pose.position.x = pose.y;
-  odom_msg_.pose.pose.position.y = pose.x;
-  odom_msg_.pose.pose.orientation = quat;
-
-  // Populate velocity info
-  // NOTE: x and y axes are inversed (y is the forward direction)
-  odom_msg_.twist.twist.linear.x = vel.y;
-  odom_msg_.twist.twist.linear.y = vel.x;
-  odom_msg_.twist.twist.angular.z = vel.yaw;
-
-  if (publish_tf_)
-  {
-	// NOTE: x and y axes are inversed (y is the forward direction)
-    tf_odom_.header.stamp = ros::Time::now();
-    tf_odom_.transform.translation.x = pose.y;
-    tf_odom_.transform.translation.y = pose.x;
-    tf_odom_.transform.rotation = quat;
-    tf_broadcaster_.sendTransform(tf_odom_);
-  }
-
-  odom_pub_.publish(odom_msg_);
+    // Positions of the joints are expressed in rad, and velocities in rad/sec
+    joint_state_msg_.header.stamp = ros::Time::now();
+    joint_state_msg_.position[0] = robot_->getLeftWheelDistance() / wheelRadius;
+    joint_state_msg_.position[1] = robot_->getRightWheelDistance() / wheelRadius;
+    joint_state_msg_.velocity[0] = ((float)robot_->getRequestedLeftWheelVel() / 1000.0) / wheelRadius;
+    joint_state_msg_.velocity[1] = ((float)robot_->getRequestedRightWheelVel() / 1000.0) / wheelRadius;
+    wheel_joint_pub_.publish(joint_state_msg_);
 }
 
 void CreateDriver::publishBatteryInfo() {

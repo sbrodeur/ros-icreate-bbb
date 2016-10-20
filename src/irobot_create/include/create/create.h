@@ -80,17 +80,12 @@ namespace create {
       CreateMode mode;
       SerialMode serialMode;
 
-      create::Pose pose;
-      create::Vel vel;
-
       uint32_t prevTicksLeft;
       uint32_t prevTicksRight;
       float totalLeftDist;
       float totalRightDist;
       bool firstOnData;
       util::timestamp_t prevOnDataTime;
-
-      Matrix poseCovar;
 
       void init(const SerialMode& serialMode = AUTO);
       // Add two matrices and handle overflow case
@@ -534,14 +529,6 @@ namespace create {
       /* Get the current mode reported by Create.
        */
       create::CreateMode getMode();
-
-      /* Get the estimated position of Create based on wheel encoders.
-       */
-      create::Pose getPose() const;
-
-      /* Get the estimated velocity of Create based on wheel encoders.
-       */
-      create::Vel getVel() const;
 
       /* Get the number of corrupt serial packets since first connecting to Create.
        */

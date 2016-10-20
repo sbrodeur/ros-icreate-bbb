@@ -17,9 +17,9 @@ namespace create {
     ADD_PACKET(ID_CLIFF_FRONT_RIGHT, 1, "cliff_front_right", V_ALL);
     ADD_PACKET(ID_CLIFF_RIGHT, 1, "cliff_right", V_ALL);
     ADD_PACKET(ID_VIRTUAL_WALL, 1, "virtual_wall", V_ALL);
-    ADD_PACKET(ID_OVERCURRENTS, 1, "overcurrents", V_1);
+    ADD_PACKET(ID_OVERCURRENTS, 1, "overcurrents", V_1 | V_2);
     ADD_PACKET(ID_DIRT_DETECT_LEFT, 1, "dirt_detect_left", V_ALL);
-    ADD_PACKET(ID_DIRT_DETECT_RIGHT, 1, "dirt_detect_right", V_1);
+    ADD_PACKET(ID_DIRT_DETECT_RIGHT, 1, "dirt_detect_right", V_1 | V_2);
     ADD_PACKET(ID_IR_OMNI, 1, "ir_opcode", V_ALL);
     ADD_PACKET(ID_BUTTONS, 1, "buttons", V_ALL);
     ADD_PACKET(ID_DISTANCE, 2, "distance", V_1 | V_2);
@@ -35,11 +35,18 @@ namespace create {
     ADD_PACKET(ID_CLIFF_FRONT_LEFT_SIGNAL, 2, "cliff_front_left_signal", V_ALL);
     ADD_PACKET(ID_CLIFF_FRONT_RIGHT_SIGNAL, 2, "cliff_front_right_signal", V_ALL);
     ADD_PACKET(ID_CLIFF_RIGHT_SIGNAL, 2, "battery_capacity", V_ALL);
+    ADD_PACKET(ID_CARGO_BAY_DIGITAL_INPUTS, 1, "cargo_bay_digital_inputs", V_2);
+    ADD_PACKET(ID_CARGO_BAY_ANALOG_SIGNAL, 2, "cargo_bay_analog_signal", V_2);
+    ADD_PACKET(ID_CHARGE_SOURCE, 1, "charge_source", V_2);
+    ADD_PACKET(ID_OI_MODE, 1, "oi_mode", V_2 | V_3);
+    ADD_PACKET(ID_SONG_NUM, 1, "song_num", V_2);
+    ADD_PACKET(ID_PLAYING, 1, "playing", V_2);
+    ADD_PACKET(ID_NUM_STREAM_PACKETS, 1, "num_stream_packets", V_2);
+    ADD_PACKET(ID_VEL, 2, "velocity", V_2);
+    ADD_PACKET(ID_RADIUS, 2, "radius", V_2);
     ADD_PACKET(ID_LEFT_VEL, 2, "requested_left_velocity", V_ALL);
     ADD_PACKET(ID_RIGHT_VEL, 2, "requested_right_velocity", V_ALL);
-    ADD_PACKET(ID_OI_MODE, 1, "oi_mode", V_2 | V_3);
-    ADD_PACKET(ID_LEFT_ENC, 2, "enc_counts_left", V_3);
-    ADD_PACKET(ID_RIGHT_ENC, 2, "enc_counts_right", V_3);
+
     ADD_PACKET(ID_LEFT_ENC, 2, "enc_counts_left", V_3);
     ADD_PACKET(ID_RIGHT_ENC, 2, "enc_counts_right", V_3);
     ADD_PACKET(ID_LIGHT, 1, "light_bumper", V_3);

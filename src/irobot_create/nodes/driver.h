@@ -6,6 +6,7 @@
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/BatteryState.h>
+#include <sensor_msgs/JointState.h>
 #include <tf/transform_broadcaster.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 
@@ -24,7 +25,6 @@ class CreateDriver
 private:
   create::Create* robot_;
   create::RobotModel model_;
-  tf::TransformBroadcaster tf_broadcaster_;
   diagnostic_updater::Updater diagnostics_;
   ros::Time last_cmd_vel_time_;
 
@@ -32,8 +32,7 @@ private:
   create::Contact contact_msg_;
   create::MotorSpeed motors_msg_;
   create::IrRange ir_range_msg_;
-  nav_msgs::Odometry odom_msg_;
-  geometry_msgs::TransformStamped tf_odom_;
+  sensor_msgs::JointState joint_state_msg_;
 
   bool is_running_slowly_;
   int safety_restriction_;
@@ -60,11 +59,11 @@ private:
   void updateModeDiagnostics(diagnostic_updater::DiagnosticStatusWrapper& stat);
   void updateDriverDiagnostics(diagnostic_updater::DiagnosticStatusWrapper& stat);
 
-  void publishOdometryInfo();
   void publishBatteryInfo();
   void publishContactInfo();
   void publishMotorsInfo();
   void publishIrRangeInfo();
+  void publishJointInfo();
 
   bool applySafety();
   void beep();
@@ -81,11 +80,11 @@ protected:
   ros::ServiceServer brake_srv_;
   ros::ServiceServer leds_srv_;
 
-  ros::Publisher odom_pub_;
   ros::Publisher battery_pub_;
   ros::Publisher contact_pub_;
   ros::Publisher motors_pub_;
   ros::Publisher ir_range_pub_;
+  ros::Publisher wheel_joint_pub_;
 
 public:
   CreateDriver(ros::NodeHandle& nh);
