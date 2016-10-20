@@ -1,13 +1,21 @@
 <launch>
 
-<!-- Launches 2 windows with live audio graphs -->
-
-<node name="viewer_audio_left" pkg="audio" type="viewer.py" output="screen">
-    <param name="input" value="/audio/left/raw" />
+<node name="mic_left" pkg="audio" type="audio_capture" output="screen">
+    <param name="device" value="front:CARD=webcam_left,DEV=0" />
+    <param name="rate" value="16000" />
+    <param name="channels" value="1" />
+    <param name="buffer_size" value="1024" />
+    <param name="mic_name" value="left"/>
+    <param name="output" value="/audio/left/raw" />
 </node>
 
-<node name="viewer_audio_right" pkg="audio" type="viewer.py" output="screen">
-    <param name="input" value="/audio/right/raw" />
+<node name="mic_right" pkg="audio" type="audio_capture" output="screen">
+    <param name="device" value="front:CARD=webcam_right,DEV=0" />
+    <param name="rate" value="16000" />
+    <param name="channels" value="1" />
+    <param name="buffer_size" value="1024" />
+    <param name="mic_name" value="right"/>
+    <param name="output" value="/audio/right/raw" />
 </node>
 
 </launch>

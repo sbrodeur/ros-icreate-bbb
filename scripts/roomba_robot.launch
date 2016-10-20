@@ -35,7 +35,7 @@
 </node>
 
 <node name="mic_left" pkg="audio" type="audio_capture" output="screen">
-    <param name="device" value="front:CARD=Q9000,DEV=0" />
+    <param name="device" value="front:CARD=webcam_left,DEV=0" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
     <param name="buffer_size" value="1024" />
@@ -44,7 +44,7 @@
 </node>
 
 <node name="mic_right" pkg="audio" type="audio_capture" output="screen">
-    <param name="device" value="front:CARD=Q9000_1,DEV=0" />
+    <param name="device" value="front:CARD=webcam_right,DEV=0" />
     <param name="rate" value="16000" />
     <param name="channels" value="1" />
     <param name="buffer_size" value="1024" />
