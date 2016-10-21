@@ -60,6 +60,7 @@ class CaptureNode {
         int framerate_;
         int exposure_;
         int focus_;
+        int gain_;
         bool invert_image_;
         std::string output_;
         std::string video_device_;
@@ -85,8 +86,9 @@ class CaptureNode {
                 node_.param("framerate", framerate_, 5);
                 node_.param("exposure", exposure_, 255);
                 node_.param("focus", focus_, 30);
+                node_.param("gain", gain_, 255);
 
-                capture_ = new VideoCapture(video_device_, width_, height_, framerate_, exposure_, focus_, false);
+                capture_ = new VideoCapture(video_device_, width_, height_, framerate_, exposure_, focus_, gain_, false);
             }
 
         virtual ~CaptureNode() {
@@ -167,7 +169,7 @@ class CaptureNode {
 };
 
 int main(int argc, char **argv) {
-    ros::init(argc, argv, "capture");
+    ros::init(argc, argv, "capture_camera");
 
     CaptureNode a;
     a.spin();

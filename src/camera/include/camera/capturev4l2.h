@@ -92,15 +92,17 @@ class VideoCapture {
 	int _framerate;
 	int _exposure;
 	int _focus;
+	int _gain;
 	bool _decodeEnabled;
 
 	// Codec
 	VideoDecoder* _decoder;
 
   public:
-	VideoCapture(string devname, int width, int height, int framerate=15, int exposure=255, int focus=30, bool decodeEnabled=true);
+	VideoCapture(string devname, int width, int height, int framerate=15, int exposure=255, int focus=30, int gain=255, bool decodeEnabled=true);
 	~VideoCapture();
 	int printInfo();
+	int setParameters();
 	int initMmap();
 	std::vector<uint8_t> grabFrame();
 };

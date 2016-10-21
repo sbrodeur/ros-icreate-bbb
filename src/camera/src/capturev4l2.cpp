@@ -38,12 +38,13 @@ static int xioctl(int fd, int request, void *arg){
         return r;
 }
 
-VideoCapture::VideoCapture (string devname, int width, int height, int framerate, int exposure, int focus, bool decodeEnabled) {
+VideoCapture::VideoCapture (string devname, int width, int height, int framerate, int exposure, int focus, int gain, bool decodeEnabled) {
   _devname = devname;
   _width = width;
   _height = height;
   _exposure = exposure;
   _focus = focus;
+  _gain = gain;
   _decodeEnabled = decodeEnabled;
   _framerate = framerate;
 
@@ -52,6 +53,7 @@ VideoCapture::VideoCapture (string devname, int width, int height, int framerate
 	  perror("Opening video device");
   }
   printInfo();
+  setParameters();
   initMmap();
 
   _decoder = NULL;
@@ -156,6 +158,52 @@ int VideoCapture::printInfo()
         	//return 1;
         }
 
+        strncpy(fourcc, (char *)&fmt.fmt.pix.pixelformat, 4);
+        printf( "Selected Camera Mode:\n"
+                "  Width: %d\n"
+                "  Height: %d\n"
+                "  PixFmt: %s\n"
+                "  Field: %d\n",
+                fmt.fmt.pix.width,
+                fmt.fmt.pix.height,
+                fourcc,
+                fmt.fmt.pix.field);
+
+        return 0;
+}
+
+int VideoCapture::setParameters()
+{
+        struct v4l2_format fmt;
+        fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        fmt.fmt.pix.width = _width;
+        fmt.fmt.pix.height = _height;
+        fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
+        fmt.fmt.pix.field = V4L2_FIELD_NONE;
+
+        if (-1 == xioctl(_fd, VIDIOC_S_FMT, &fmt))
+        {
+            perror("Couldn't set pixel format");
+            //return 1;
+        }
+
+        struct v4l2_streamparm stream_params;
+        memset(&stream_params, 0, sizeof(stream_params));
+        stream_params.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+        if (xioctl(_fd, VIDIOC_G_PARM, &stream_params) < 0)
+        {
+        	perror("Couldn't get camera framerate");
+        	//return 1;
+        }
+        stream_params.parm.capture.timeperframe.numerator = 1;
+        //TODO : It seems we must multiply by a factor of 2 to get the right framerate!
+        stream_params.parm.capture.timeperframe.denominator = 2 * _framerate;
+        if (xioctl(_fd, VIDIOC_S_PARM, &stream_params) < 0)
+        {
+        	perror("Couldn't set camera framerate");
+        	//return 1;
+        }
+
         // Manual exposure control
         // See: https://linuxtv.org/downloads/v4l-dvb-apis/extended-controls.html
         struct v4l2_control stream_control_exposure;
@@ -177,6 +225,27 @@ int VideoCapture::printInfo()
         	//return 1;
         }
 
+        // Manual gain control
+		struct v4l2_control stream_control_gain;
+		stream_control_gain.id = V4L2_CID_AUTOGAIN;
+		stream_control_gain.value = false;
+		if(xioctl(_fd, VIDIOC_S_CTRL, &stream_control_gain) != 0)
+		{
+			perror("Couldn't set camera gain to manual");
+			//return 1;
+		}
+
+		// Manual gain absolute value
+		struct v4l2_control stream_control_gain_value;
+		stream_control_gain_value.id = V4L2_CID_GAIN;
+		stream_control_gain_value.value = _gain;
+		if(xioctl(_fd, VIDIOC_S_CTRL, &stream_control_gain_value) != 0)
+		{
+			perror("Couldn't set camera gain value");
+			//return 1;
+		}
+
+
         // Manual focus
 		struct v4l2_control stream_control_focus;
         stream_control_focus.id = V4L2_CID_FOCUS_AUTO;
@@ -196,17 +265,6 @@ int VideoCapture::printInfo()
 			perror("Couldn't set camera focus absolute value");
 			//return 1;
 		}
-
-        strncpy(fourcc, (char *)&fmt.fmt.pix.pixelformat, 4);
-        printf( "Selected Camera Mode:\n"
-                "  Width: %d\n"
-                "  Height: %d\n"
-                "  PixFmt: %s\n"
-                "  Field: %d\n",
-                fmt.fmt.pix.width,
-                fmt.fmt.pix.height,
-                fourcc,
-                fmt.fmt.pix.field);
 
         return 0;
 }
