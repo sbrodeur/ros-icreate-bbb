@@ -67,7 +67,7 @@ class CaptureNode {
                 node_.param("deviceLocation", deviceLoc, std::string("/sys/bus/i2c/drivers/bmp085/2-0077"));
                 node_.param("tempProbe", tempProbe, std::string("/temp0_input"));
                 node_.param("presProbe", presProbe, std::string("/pressure0_input"));
-                node_.param("rateHz", rate_, 20.0);
+                node_.param("rate", rate_, 15.0);
 
                 node_.param("outputPres", outputPres_, std::string("imu/pres/raw"));
                 node_.param("outputTemp", outputTemp_, std::string("imu/temp/raw"));

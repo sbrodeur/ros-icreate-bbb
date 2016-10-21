@@ -108,22 +108,22 @@ class Behaviour:
         
 class BehaviourController:
     
-    def __init__(self, rate=None):
+    def __init__(self, rate=None, stateless=False):
 
         self.rate = rate
         self.lock = threading.Lock()
         self.isDocking = False
         self.lastMotorAction = None
-        self.state = RobotState(Contact(),BatteryState(),Odometry())
+        self.state = None
+        self.stateless = stateless
         
-        #rospy.wait_for_service('/irobot_create/tank')
-        #self.tank = rospy.ServiceProxy('/irobot_create/tank', Tank)
-        #self.dock = rospy.ServiceProxy('/irobot_create/dock', Dock)
-        
-        self.input = rospy.get_param('~input', '/irobot_create')
-        rospy.Subscriber(self.input + '/battery', BatteryState, BehaviourController.callback, self)
-        rospy.Subscriber(self.input + '/contact', Contact, BehaviourController.callback, self)
-        rospy.Subscriber(self.input + '/odom', Odometry, BehaviourController.callback, self)
+        if not stateless:
+            self.state = RobotState(Contact(),BatteryState(),Odometry())
+            self.input = rospy.get_param('~input', '/irobot_create')
+            rospy.Subscriber(self.input + '/battery', BatteryState, BehaviourController.callback, self)
+            rospy.Subscriber(self.input + '/contact', Contact, BehaviourController.callback, self)
+            rospy.Subscriber(self.input + '/odom', Odometry, BehaviourController.callback, self)
+            
         self.rawPub = rospy.Publisher('/irobot_create/cmd_raw', MotorSpeed, queue_size=1)
         
         self.behaviours = []
@@ -182,7 +182,7 @@ class BehaviourController:
             # Get current state
             with self.lock:
                 state = self.state
-            if state == None:
+            if not self.stateless and state == None:
                 # Wait for the first state to become available
                 continue
 

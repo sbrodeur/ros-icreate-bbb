@@ -464,7 +464,7 @@ void CreateDriver::spin()
     is_running_slowly_ = !rate.sleep();
     if (is_running_slowly_)
     {
-      ROS_WARN("[CREATE] Loop running slowly.");
+    	ROS_WARN_THROTTLE(1, "[CREATE] Loop running slowly.");
     }
   }
 }

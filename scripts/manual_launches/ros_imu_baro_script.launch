@@ -1,12 +1,12 @@
 <launch>
 
-<node name="imu_bmp" pkg="imu" type="capture_baro" output="screen" >
+<node name="imu_baro" pkg="imu" type="imu_capture_baro" output="screen" >
     <param name="deviceLocation" value="/sys/bus/i2c/drivers/bmp085/2-0077" />        
     <param name="tempProbe" value="/temp0_input" />
     <param name="presProbe" value="/pressure0_input" />
-    <param name="rateHz" value="20" />
+    <param name="rate" value="15.0" />
     <param name="outputTemp" value="/imu/temp" />
-    <param name="outputPres" value="/imu/pres" />
+    <param name="outputPres" value="/imu/baro" />
 </node>
 
 </launch>

@@ -4,8 +4,8 @@
 <!-- Starts joystick manual control of the robot -->
 
 <node name="joystick" pkg="action" type="remote_control.py" output="screen">
-    <param name="~joystick_dev" value="/dev/input/js3"/>
-    <param name="~rosbag_loc" value="/root/work/rosbags"/>
+    <param name="~joystick_dev" value="/dev/input/js1"/>
+    <param name="~rosbag_loc" value="/home/simon/rosbags"/>
 </node>
 
 

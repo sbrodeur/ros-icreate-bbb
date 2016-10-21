@@ -210,7 +210,7 @@ class RemoteControl(Behaviour):
         self.recording = False
         #rospy.wait_for_service('/irobot_create/leds')
         #self.recordBag = rospy.ServiceProxy('/irobot_create/record', Record)
-        rospy.wait_for_service('irobot_create/beep')
+        #rospy.wait_for_service('irobot_create/beep')
         self.beepControl = rospy.ServiceProxy('/irobot_create/beep', Beep)
         Behaviour.__init__(self, priority, controller)
         self.rospack = rospkg.RosPack()
@@ -244,7 +244,11 @@ class RemoteControl(Behaviour):
             return None
         
         
-        recordActivation = self.joystick.button_states['b'] and self.joystick.button_states['y']
+        if 'b' in self.joystick.button_states and 'y' in self.joystick.button_states:
+            recordActivation = self.joystick.button_states['b'] and self.joystick.button_states['y']
+        elif 'base' in self.joystick.button_states:
+            recordActivation = self.joystick.button_states['base']
+            
         if recordActivation == 1 and self.recording == False:
             rospy.logwarn("Will start Recording!")
             self.timeStartRecord = rospy.Time.now()
@@ -265,7 +269,12 @@ class RemoteControl(Behaviour):
            
 
         #interrupt recording
-        recordCancelation = self.joystick.button_states['x'] and self.joystick.button_states['a']
+        
+        if 'x' in self.joystick.button_states and 'a' in self.joystick.button_states:
+            recordCancelation = self.joystick.button_states['x'] and self.joystick.button_states['a']
+        elif 'base2' in self.joystick.button_states:
+            recordCancelation = self.joystick.button_states['base2']
+        
         if recordCancelation == 1 and self.recording == True:
             #Must SIGINT child process ourselves, since rosbag record creates a few
             ps_command = subprocess.Popen("ps -o pid --ppid %d --noheaders" % self.rosRecordingProcess.pid, shell=True, stdout=subprocess.PIPE)
@@ -355,7 +364,8 @@ if __name__ == '__main__':
     try:
         rospy.init_node('remote_control', log_level=rospy.INFO)
         dev = rospy.get_param('~joystick_dev', '/dev/input/js0')
-        controller = BehaviourController(rate=7)
+        rate = rospy.get_param('~rate', 20.0)
+        controller = BehaviourController(rate, stateless=True)
         controller.addBehaviour(RemoteControl(dev), priority=0)
         controller.spin()
 
