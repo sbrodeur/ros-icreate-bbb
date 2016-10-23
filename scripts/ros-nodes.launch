@@ -4,7 +4,7 @@
 	<param name="dev" value="/dev/ttyS1" />
 	<param name="latch_cmd_duration" value="1000.0" />
 	<param name="safety" value="True" />
-    <param name="rate" value="40.0" />
+    <param name="rate" value="50.0" />
     <param name="serial_mode" value="streaming" />
 </node>
 
@@ -13,7 +13,7 @@
     <param name="width" value="640" />
     <param name="height" value="480" />
     <param name="framerate" value="10" />
-    <param name="exposure" value="255" />
+    <param name="exposure" value="1000" />
     <param name="gain" value="255" />
     <param name="focus" value="0" />
     <param name="camera_name" value="left"/>
@@ -26,7 +26,7 @@
     <param name="width" value="640" />
     <param name="height" value="480" />
     <param name="framerate" value="10" />
-    <param name="exposure" value="255" />
+    <param name="exposure" value="1000" />
     <param name="gain" value="255" />
     <param name="focus" value="0" />
     <param name="camera_name" value="right"/>
@@ -52,36 +52,44 @@
     <param name="output" value="/audio/right/raw" />
 </node>
 
+<!--
 <node name="odometry" pkg="create" type="create_odometry" output="screen" >
 	<param name="input_joints" value="/irobot_create/joints" />
 	<param name="input_imu" value="/imu/data" />
 	<param name="publish_tf" value="False" />
 	<param name="queue_size" value="10" />
 </node>
+-->
 
 <node name="imu_acc_gyro" pkg="imu" type="imu_capture_acc_gyro" output="screen">
-    <param name="outputPos" value="/imu/data_raw" />
-    <param name="deviceAccel" value="/dev/lsm303d_acc" />
-    <param name="deviceGyro" value="/dev/l3gd20_gyr" />
-    <param name="rate" value="75.0" />
+    <param name="output" value="/imu/data_raw" />
+    <param name="device_acc" value="/dev/lsm303d_acc" />
+    <param name="device_gyro" value="/dev/l3gd20_gyr" />
+    <param name="rate" value="0.0" />
+    <param name="frame_size" value="16" />
 </node>
 
 <node name="imu_mag" pkg="imu" type="imu_capture_mag" output="screen">
-    <param name="outputPos" value="/imu/mag" />
-    <param name="deviceMag" value="/dev/lsm303d_mag" />
-    <param name="rate" value="75.0" />
+    <param name="output" value="/imu/mag" />
+    <param name="device" value="/dev/lsm303d_mag" />
+    <param name="rate" value="0.0" />
+    <param name="frame_size" value="16" />
     <param name="calibrate" value="True" />
 </node>
 
 <node name="imu_baro" pkg="imu" type="imu_capture_baro" output="screen" >
-    <param name="deviceLocation" value="/sys/bus/i2c/drivers/bmp085/2-0077" />        
-    <param name="tempProbe" value="/temp0_input" />
-    <param name="presProbe" value="/pressure0_input" />
-    <param name="rate" value="15.0" />
-    <param name="outputTemp" value="/imu/temp" />
-    <param name="outputPres" value="/imu/baro" />
+    <param name="device" value="/sys/bus/i2c/drivers/bmp085/2-0077/pressure0_input" />        
+    <param name="rate" value="50.0" />
+    <param name="output" value="/imu/baro" />
 </node>
 
+<node name="imu_temp" pkg="imu" type="imu_capture_temp" output="screen" >
+    <param name="device" value="/sys/bus/i2c/drivers/bmp085/2-0077/temp0_input" />        
+    <param name="rate" value="1.0" />
+    <param name="output" value="/imu/temp" />
+</node>
+
+<!--
 <node name="imu_madgwick" pkg="imu_filter_madgwick" type="imu_filter_node" output="screen" >
     <param name="world_frame" value="nwu"/>
     <param name="use_mag" value="True"/>
@@ -92,10 +100,11 @@
     <param name="publish_debug_topics" value="False"/>
     <param name="stateless" value="False"/>
 </node>
+-->
 
 <node name="joystick" pkg="action" type="remote_control.py" output="screen" >
     <param name="joystick_dev" value="/dev/input/js3"/>
-    <param name="rate" value="20.0"/>
+    <param name="rate" value="50.0"/>
     <param name="rosbag_loc" value="/root/work/rosbags"/>
 </node>
 

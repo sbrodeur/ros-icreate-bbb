@@ -42,6 +42,7 @@ from mpl_toolkits.mplot3d import proj3d
 
 import rospy
 from sensor_msgs.msg import MagneticField
+from imu.msg import MagneticFieldBatch
 
 # Adapted from: http://stackoverflow.com/questions/22867620/putting-arrowheads-on-vectors-in-matplotlibs-3d-plot
 class Arrow3D(FancyArrowPatch):
@@ -81,7 +82,12 @@ class RealtimeMagneticFieldPlotter:
         
         
         input = rospy.get_param('~input', '/imu/mag')
-        rospy.Subscriber(input, MagneticField, RealtimeMagneticFieldPlotter.callback, self)
+        batch = rospy.get_param('~batch', False)
+        
+        if batch:
+            rospy.Subscriber(input, MagneticFieldBatch, RealtimeMagneticFieldPlotter.callback, self)
+        else:
+            rospy.Subscriber(input, MagneticField, RealtimeMagneticFieldPlotter.callback, self)
         
         self.genMagProfile = rospy.get_param('~generate_mag_profile', False)
         if(self.genMagProfile):
@@ -125,9 +131,16 @@ class RealtimeMagneticFieldPlotter:
     @staticmethod
     def callback(msg, self):
         if not self.q.full():
-            # Magnetometer (as 3D vector [x, y, z])
-            vector = np.array([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z], dtype=np.float64)
-            self.q.put(vector)
+            
+            if isinstance(msg, MagneticField):
+                # Magnetometer (as 3D vector [x, y, z])
+                vector = np.array([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z], dtype=np.float64)
+                self.q.put(vector)
+            elif isinstance(msg, MagneticFieldBatch):
+                # Magnetometer in batch mode (as 3D vector [x, y, z])
+                # NOTE: only show the last sample in the batch
+                vector = np.array([msg.magnetic_fields[-1].x, msg.magnetic_fields[-1].y, msg.magnetic_fields[-1].z], dtype=np.float64)
+                self.q.put(vector)
             
             if(self.genMagProfile):
                 self.magPointWriter.writerow([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z])

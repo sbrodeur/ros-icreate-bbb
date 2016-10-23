@@ -41,7 +41,7 @@ import rospy
 import rospkg
 
 from action.behaviours import BehaviourController, Behaviour, MotorAction
-from irobot_create.srv import * 
+from create.srv import Beep, Leds, Brake
 
 
 class Joystick:
@@ -209,7 +209,6 @@ class RemoteControl(Behaviour):
         self.mode = None
         self.recording = False
         #rospy.wait_for_service('/irobot_create/leds')
-        #self.recordBag = rospy.ServiceProxy('/irobot_create/record', Record)
         #rospy.wait_for_service('irobot_create/beep')
         self.beepControl = rospy.ServiceProxy('/irobot_create/beep', Beep)
         Behaviour.__init__(self, priority, controller)
@@ -253,7 +252,7 @@ class RemoteControl(Behaviour):
             rospy.logwarn("Will start Recording!")
             self.timeStartRecord = rospy.Time.now()
             self.recording = True
-            args="--regex '/(rosout|rosout_agg|imu/(.*)|irobot_create/(.*)|audio/(left|right)/raw|video/(left|right)/(compressed|camera_info)|tf)' --quiet --buffsize=128 "
+            args="--regex '/(diagnostics|rosout|rosout_agg|imu/(.*)|irobot_create/(.*)|audio/(.*)|video/(.*))' --quiet --buffsize=128 "
             startLnhRecording = 'rosbag record ' + args + ' --duration=15m -O' + self.rosbagSaveLoc + '/session_' + time.strftime("%Y%m%d_%H%M%S", time.localtime()) + '.bag'
 
             # Launch command in a subprocess

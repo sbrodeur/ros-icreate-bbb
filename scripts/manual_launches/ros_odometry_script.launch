@@ -16,16 +16,18 @@
 </node>
 
 <node name="imu_acc_gyro" pkg="imu" type="imu_capture_acc_gyro" output="screen">
-    <param name="outputPos" value="/imu/data_raw" />
-    <param name="deviceAccel" value="/dev/lsm303d_acc" />
-    <param name="deviceGyro" value="/dev/l3gd20_gyr" />
-    <param name="rate" value="100.0" />
+    <param name="output" value="/imu/data_raw" />
+    <param name="device_acc" value="/dev/lsm303d_acc" />
+    <param name="device_gyro" value="/dev/l3gd20_gyr" />
+    <param name="rate" value="0.0" />
+    <param name="frame_size" value="1" />
 </node>
 
 <node name="imu_mag" pkg="imu" type="imu_capture_mag" output="screen">
-    <param name="outputPos" value="/imu/mag" />
-    <param name="deviceMag" value="/dev/lsm303d_mag" />
-    <param name="rate" value="100.0" />
+    <param name="output" value="/imu/mag" />
+    <param name="device" value="/dev/lsm303d_mag" />
+    <param name="rate" value="0.0" />
+    <param name="frame_size" value="1" />
     <param name="calibrate" value="True" />
 </node>
 

@@ -38,6 +38,7 @@
 #include <sensor_msgs/Imu.h>
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Vector3.h>
+#include <imu/ImuBatch.h>
 
 using namespace std;
 
@@ -63,19 +64,25 @@ class CaptureNode {
         std::string deviceAccel_;
         std::string deviceGyro_;
         double rate_;
+        int frameSize_;
 
         AxisData dataAccel_;
         AxisData dataGyro_;
+
+        sensor_msgs::Imu msgPos_;
+        imu::ImuBatch msgPosBatch_;
+        int nbSamplesBatch_;
 
         int fdAccel_;
         int fdGyro_;
 
         CaptureNode() : node_("~"){
 
-        	node_.param("outputPos", outputPos_, std::string("/imu/data_raw"));
-        	node_.param("deviceAccel", deviceAccel_, std::string("/dev/lsm303d_acc"));
-        	node_.param("deviceGyro", deviceGyro_, std::string("/dev/l3gd20_gyr"));
-        	node_.param("rate", rate_, 15.0);
+        	node_.param("output", outputPos_, std::string("/imu/data_raw"));
+        	node_.param("device_acc", deviceAccel_, std::string("/dev/lsm303d_acc"));
+        	node_.param("device_gyro", deviceGyro_, std::string("/dev/l3gd20_gyr"));
+        	node_.param("rate", rate_, 0.0);
+        	node_.param("frame_size", frameSize_, 1);
 
         	// Adapted from: http://stackoverflow.com/questions/28841139/how-to-get-coordinates-of-touchscreen-rawdata-using-linux
 
@@ -107,15 +114,36 @@ class CaptureNode {
 			printf("device file = %s\n", deviceGyro_.c_str());
 			printf("device name = %s\n", nameGyro);
 
-			//std::string command = "echo > " + " "
-			//int system();
-
 			/*gyro_.setGyroDataRate(DR_GYRO_800HZ);
 			gyro_.setGyroScale(SCALE_GYRO_245dps);
 			lms303_.setAccelDataRate(DR_ACCEL_100HZ);
 			lms303_.setAccelScale(SCALE_ACCEL_4g);*/
 
-			pubPos_ = node_.advertise<sensor_msgs::Imu>(outputPos_, 10);
+			nbSamplesBatch_ = 0;
+			if (frameSize_ > 1){
+				msgPosBatch_.stamps.resize(frameSize_);
+				msgPosBatch_.angular_velocities.resize(frameSize_);
+				msgPosBatch_.linear_accelerations.resize(frameSize_);
+				msgPosBatch_.orientations.resize(frameSize_);
+
+				msgPosBatch_.header.frame_id = "imu_link";
+				for (unsigned int i=0; i<frameSize_; i++){
+					msgPosBatch_.orientations[i].x = 0;
+					msgPosBatch_.orientations[i].y = 0;
+					msgPosBatch_.orientations[i].z = 0;
+					msgPosBatch_.orientations[i].w = 0;
+				}
+
+				pubPos_ = node_.advertise<imu::ImuBatch>(outputPos_, 10);
+			}else{
+				msgPos_.header.frame_id = "imu_link";
+                msgPos_.orientation.x = 0;
+                msgPos_.orientation.y = 0;
+                msgPos_.orientation.z = 0;
+                msgPos_.orientation.w = 0;
+
+				pubPos_ = node_.advertise<sensor_msgs::Imu>(outputPos_, 10);
+			}
         }
 
         virtual ~CaptureNode() {
@@ -184,12 +212,17 @@ class CaptureNode {
         	bool accelDataReady;
         	bool gyroDataReady;
 
-            ros::Rate rate(rate_);
+        	ros::Rate rate(0.0);
+			if (rate_ > 0.0){
+				rate = ros::Rate(rate_);
+			}
+
+			bool published = false;
             while (node_.ok()) {
                 
             	accelDataReady = false;
             	gyroDataReady = false;
-            	while (!accelDataReady && !gyroDataReady){
+            	while (!accelDataReady || !gyroDataReady){
             		if (!accelDataReady){
             			accelDataReady = waitAccel();
             		}
@@ -198,37 +231,59 @@ class CaptureNode {
             		}
             	}
 
-                // Positioning message
-                sensor_msgs::Imu msgPos;
+            	if (frameSize_ > 1){
 
-                msgPos.header.stamp = ros::Time::now();
-                msgPos.header.frame_id = "imu_link";
+            		msgPosBatch_.stamps[nbSamplesBatch_] = ros::Time::now();
 
-                msgPos.orientation.x = 0;
-                msgPos.orientation.y = 0;
-                msgPos.orientation.z = 0;
-                msgPos.orientation.w = 0;
-                
-                // Convert to from udps to rad/sec
-                // NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
-                msgPos.angular_velocity.x =  (((double)dataGyro_.x) * SENSITIVITY_250/1000000.0 * PI/180.0);
-                msgPos.angular_velocity.y =  (((double)dataGyro_.y) * SENSITIVITY_250/1000000.0 * PI/180.0);
-                msgPos.angular_velocity.z =  (((double)dataGyro_.z) * SENSITIVITY_250/1000000.0 * PI/180.0);
-                //msg.angular_velocity_covariance    = ;
-                
-                // Convert from ug to m/s^2
-                // NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
-                // NOTE: the accelerometer measures the inertial force, which is the negative of the acceleration force.
-                //	     Because the imu madgwick filter expects inertial forces, we don't apply this negation.
-                // NOTE: inverted x and y axis intentional since lsm303d and l3dg20 were not using same axis reference on IMU board.
-                msgPos.linear_acceleration.x = G_ACC*((double)dataAccel_.y) / 1000000;
-                msgPos.linear_acceleration.y =  -G_ACC*((double)dataAccel_.x) / 1000000;
-                msgPos.linear_acceleration.z = G_ACC*((double)dataAccel_.z) / 1000000;
-                //msg.linear_acceleration_covariance = ;
+            		// Convert to from udps to rad/sec
+					// NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
+            		msgPosBatch_.angular_velocities[nbSamplesBatch_].x =  (((double)dataGyro_.x) * SENSITIVITY_250/1000000.0 * PI/180.0);
+            		msgPosBatch_.angular_velocities[nbSamplesBatch_].y =  (((double)dataGyro_.y) * SENSITIVITY_250/1000000.0 * PI/180.0);
+            		msgPosBatch_.angular_velocities[nbSamplesBatch_].z =  (((double)dataGyro_.z) * SENSITIVITY_250/1000000.0 * PI/180.0);
 
-                pubPos_.publish(msgPos);
+					// Convert from ug to m/s^2
+					// NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
+					// NOTE: the accelerometer measures the inertial force, which is the negative of the acceleration force.
+					//	     Because the imu madgwick filter expects inertial forces, we don't apply this negation.
+					// NOTE: inverted x and y axis intentional since lsm303d and l3dg20 were not using same axis reference on IMU board.
+            		msgPosBatch_.linear_accelerations[nbSamplesBatch_].x = G_ACC*((double)dataAccel_.y) / 1000000;
+            		msgPosBatch_.linear_accelerations[nbSamplesBatch_].y =  -G_ACC*((double)dataAccel_.x) / 1000000;
+            		msgPosBatch_.linear_accelerations[nbSamplesBatch_].z = G_ACC*((double)dataAccel_.z) / 1000000;
 
-                rate.sleep();
+            		nbSamplesBatch_++;
+
+            		if (nbSamplesBatch_ == frameSize_){
+            			pubPos_.publish(msgPosBatch_);
+            			nbSamplesBatch_ = 0;
+            			published = true;
+            		}
+            	} else{
+            		// Positioning message
+					msgPos_.header.stamp = ros::Time::now();
+
+					// Convert to from udps to rad/sec
+					// NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
+					msgPos_.angular_velocity.x =  (((double)dataGyro_.x) * SENSITIVITY_250/1000000.0 * PI/180.0);
+					msgPos_.angular_velocity.y =  (((double)dataGyro_.y) * SENSITIVITY_250/1000000.0 * PI/180.0);
+					msgPos_.angular_velocity.z =  (((double)dataGyro_.z) * SENSITIVITY_250/1000000.0 * PI/180.0);
+
+					// Convert from ug to m/s^2
+					// NOTE: using standard axis orientation, see http://www.ros.org/reps/rep-0103.html
+					// NOTE: the accelerometer measures the inertial force, which is the negative of the acceleration force.
+					//	     Because the imu madgwick filter expects inertial forces, we don't apply this negation.
+					// NOTE: inverted x and y axis intentional since lsm303d and l3dg20 were not using same axis reference on IMU board.
+					msgPos_.linear_acceleration.x = G_ACC*((double)dataAccel_.y) / 1000000;
+					msgPos_.linear_acceleration.y =  -G_ACC*((double)dataAccel_.x) / 1000000;
+					msgPos_.linear_acceleration.z = G_ACC*((double)dataAccel_.z) / 1000000;
+
+					pubPos_.publish(msgPos_);
+					published = true;
+            	}
+
+            	if (rate_ > 0.0 && published){
+            		rate.sleep();
+            		published = false;
+            	}
             }
             return true;
         }

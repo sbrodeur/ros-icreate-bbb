@@ -15,10 +15,12 @@ export ROS_PORT=11311
 
 source /opt/ros/kinetic/setup.bash
 source $CATKIN_WORKSPACE_DIR/devel/setup.bash
-export PYTHONPATH=$CATKIN_WORKSPACE_DIR/src/irobot_create/src:$PYTHONPATH
 
 /opt/ros/kinetic/bin/roscore -p $ROS_PORT &
 sleep 4
+
+# Configure barometer and temperature sensor (bmp180)
+echo 1 > /sys/bus/i2c/drivers/bmp085/2-0077/oversampling
 
 # Configure Quickcam Pro 9000 camera (left)
 v4l2-ctl --device=/dev/video6 --set-ctrl exposure_auto=1 # Manual Mode

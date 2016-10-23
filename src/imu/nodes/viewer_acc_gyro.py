@@ -36,6 +36,7 @@ import numpy as np
 
 import rospy
 from sensor_msgs.msg import Imu
+from imu.msg import ImuBatch
 
 class RealtimeImuPlotter:
 
@@ -77,15 +78,22 @@ class RealtimeImuPlotter:
         ax2.legend(['x-axis', 'y-axis', 'z-axis'], loc='upper left')
         
         input = rospy.get_param('~input', '/imu/data_raw')
-        rospy.Subscriber(input, Imu, RealtimeImuPlotter.callback, self)
+        batch = rospy.get_param('~batch', False)
+        
+        if batch:
+            rospy.Subscriber(input, ImuBatch, RealtimeImuPlotter.callback, self)
+        else:
+            rospy.Subscriber(input, Imu, RealtimeImuPlotter.callback, self)
 
     def animate(self):
         try:
             data = self.q.get(True, 0.25)
             xdata=pylab.arange(0,self.windowSize,1)
             for i in range(0, 6):
-                self.data[0:-1:,i] = self.data[1::,i]
-                self.data[-1,i] = data[0, i]
+                for s in range(data.shape[0]):
+                    self.data[0:-1:,i] = self.data[1::,i]
+                    self.data[-1,i] = data[s, i]
+                    
                 ydata=pylab.array(self.data[:,i])
              
                 # Update existing line plots
@@ -94,16 +102,27 @@ class RealtimeImuPlotter:
             self.axes[0].axis([xdata.min(),xdata.max(),np.min(self.data[:,:3]),np.max(self.data[:,:3])])
             self.axes[1].axis([xdata.min(),xdata.max(),np.min(self.data[:,3:]),np.max(self.data[:,3:])])
             
-            self.fig.canvas.draw() 
+            self.fig.canvas.draw()
         except Queue.Empty:
             pass
         
     @staticmethod
-    def callback(data, self):
+    def callback(msg, self):
         if not self.q.full():
-            data = np.array([[data.linear_acceleration.x, data.linear_acceleration.y, data.linear_acceleration.z,
-                              data.angular_velocity.x, data.angular_velocity.y, data.angular_velocity.z]]);
-            self.q.put(data)
+            
+            if isinstance(msg, Imu):
+                data = np.array([[msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z,
+                                  msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z]]);
+                self.q.put(data)
+            elif isinstance(msg, ImuBatch):
+                nbSamples = len(msg.linear_accelerations);
+                data = []
+                for i in range(nbSamples):
+                    dataSample = np.array([msg.linear_accelerations[i].x, msg.linear_accelerations[i].y, msg.linear_accelerations[i].z,
+                                      msg.angular_velocities[i].x, msg.angular_velocities[i].y, msg.angular_velocities[i].z]);
+                    data.append(dataSample)
+                data = np.array(data)
+                self.q.put(data)
         else:
             pass
             #rospy.logwarn('Plotting queue is full!')

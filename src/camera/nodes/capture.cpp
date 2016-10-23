@@ -83,9 +83,9 @@ class CaptureNode {
                 node_.param("video_device", video_device_, std::string("/dev/video0"));
                 node_.param("width", width_, 640);
                 node_.param("height", height_, 480);
-                node_.param("framerate", framerate_, 5);
-                node_.param("exposure", exposure_, 255);
-                node_.param("focus", focus_, 30);
+                node_.param("framerate", framerate_, 10);
+                node_.param("exposure", exposure_, 1000);
+                node_.param("focus", focus_, 0);
                 node_.param("gain", gain_, 255);
 
                 capture_ = new VideoCapture(video_device_, width_, height_, framerate_, exposure_, focus_, gain_, false);

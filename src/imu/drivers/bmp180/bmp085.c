@@ -435,7 +435,7 @@ static int bmp085_init_client(struct bmp085_data *data)
 	data->chip_id = BMP085_CHIP_ID;
 	data->last_temp_measurement = 0;
 	data->temp_measurement_period = 1*HZ;
-	data->oversampling_setting = 3;
+	data->oversampling_setting = 1;
 
 	bmp085_get_of_properties(data);
 
