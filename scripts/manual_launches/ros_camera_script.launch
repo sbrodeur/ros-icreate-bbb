@@ -2,9 +2,9 @@
 
 <node name="video1" pkg="camera" type="camera_capture" output="screen">
     <param name="video_device" value="/dev/video6" />
-    <param name="width" value="640" />
-    <param name="height" value="480" />
-    <param name="framerate" value="10" />
+    <param name="width" value="320" />
+    <param name="height" value="240" />
+    <param name="framerate" value="30" /> 
     <param name="exposure" value="1000" />
     <param name="gain" value="255" />
     <param name="focus" value="0" />
@@ -18,7 +18,7 @@
     <param name="video_device" value="/dev/video7" />
     <param name="width" value="640" />
     <param name="height" value="480" />
-    <param name="framerate" value="10" />
+    <param name="framerate" value="30" />
     <param name="exposure" value="1000" />
     <param name="gain" value="255" />
     <param name="focus" value="0" />
