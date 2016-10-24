@@ -14,11 +14,11 @@ then
 	echo "[$now] Configuring Quickcam Pro 9000 camera (left)"
 	v4l2-ctl --device=/dev/video6 --set-ctrl exposure_auto=1 # Manual Mode
 	v4l2-ctl --device=/dev/video6 --set-ctrl backlight_compensation=0
-	v4l2-ctl --device=/dev/video6 --set-ctrl exposure_absolute=500
-	v4l2-ctl --device=/dev/video6 --set-ctrl gain=255
+	v4l2-ctl --device=/dev/video6 --set-ctrl exposure_absolute=800
+	v4l2-ctl --device=/dev/video6 --set-ctrl gain=200
 	v4l2-ctl --device=/dev/video6 --set-ctrl focus=0
 	v4l2-ctl --device=/dev/video6 --set-ctrl white_balance_temperature_auto=0
-	v4l2-ctl --device=/dev/video6 --set-ctrl white_balance_temperature=2000
+	v4l2-ctl --device=/dev/video6 --set-ctrl white_balance_temperature=1000
 	v4l2-ctl --device=/dev/video6 --set-ctrl led1_mode=0 # Off
 else
 	echo "[$now] Could not configure Quickcam Pro 9000 camera (left): device not found on /dev/video6"
@@ -30,8 +30,8 @@ then
 	echo "[$now] Configuring Quickcam Pro 9000 camera (right)"
 	v4l2-ctl --device=/dev/video7 --set-ctrl exposure_auto=1 # Manual Mode
 	v4l2-ctl --device=/dev/video7 --set-ctrl backlight_compensation=0
-	v4l2-ctl --device=/dev/video7 --set-ctrl exposure_absolute=500
-	v4l2-ctl --device=/dev/video7 --set-ctrl gain=255
+	v4l2-ctl --device=/dev/video7 --set-ctrl exposure_absolute=800
+	v4l2-ctl --device=/dev/video7 --set-ctrl gain=200
 	v4l2-ctl --device=/dev/video7 --set-ctrl focus=0
 	v4l2-ctl --device=/dev/video7 --set-ctrl white_balance_temperature_auto=0
 	v4l2-ctl --device=/dev/video7 --set-ctrl white_balance_temperature=1000
