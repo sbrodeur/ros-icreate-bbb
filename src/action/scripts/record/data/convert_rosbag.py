@@ -34,6 +34,9 @@ import numpy as np
 from optparse import OptionParser
 from jpegtran import JPEGImage
 
+from imu.msg import MagneticFieldBatch , ImuBatch
+from sensor_msgs.msg import MagneticField, Imu
+
 import rospy
 import rosbag
 
@@ -68,8 +71,40 @@ def main(args=None):
                     rotatedImg = img.flip('vertical').flip('horizontal')
                     msg.data = rotatedImg.as_blob()
                     nbImagesProcessed += 1
-            
-                outbag.write(topic, msg, timestamp)
+                    outbag.write(topic, msg, timestamp)
+                # Extract Batch formatted magnetic field messages
+                elif topic =='/imu/mag':
+                    if hasattr(msg, 'stamps'):
+                        unbatch_topic = '/imu/mag'
+                        #for i in range(0,len(msg.stamps)):
+                        for i in range(len(msg.stamps)):
+                            newMsg = MagneticField()
+                            newMsg.header.stamp = msg.stamps[i]
+                            newMsg.magnetic_field.x = msg.magnetic_fields[i].x
+                            newMsg.magnetic_field.y = msg.magnetic_fields[i].y
+                            newMsg.magnetic_field.z = msg.magnetic_fields[i].z
+                            outbag.write(unbatch_topic, newMsg, msg.stamps[i])
+                # Extract Batch  formatted Imu messages
+                elif topic =='/imu/data_raw':
+                    if hasattr(msg, 'stamps'):
+                        unbatch_topic = '/imu/data_raw'
+                        for i in range(len(msg.stamps)):
+                            newMsg = Imu()
+                            newMsg.header.stamp = msg.stamps[i]
+                            newMsg.orientation.x = msg.orientations[i].x
+                            newMsg.orientation.y = msg.orientations[i].y
+                            newMsg.orientation.z = msg.orientations[i].z
+                            newMsg.angular_velocity.x = msg.angular_velocities[i].x
+                            newMsg.angular_velocity.y = msg.angular_velocities[i].y
+                            newMsg.angular_velocity.z = msg.angular_velocities[i].z
+                            newMsg.linear_acceleration.x = msg.linear_accelerations[i].x
+                            newMsg.linear_acceleration.y = msg.linear_accelerations[i].y
+                            newMsg.linear_acceleration.z = msg.linear_accelerations[i].z
+                            outbag.write(unbatch_topic, newMsg, msg.stamps[i])
+                else :
+                    outbag.write(topic,msg,timestamp)
+
+
                 nbTotalMessageProcessed += 1
                 
                 if nbTotalMessageProcessed % 100 == 0:
