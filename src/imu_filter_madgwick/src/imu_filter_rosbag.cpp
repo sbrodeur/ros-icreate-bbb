@@ -5,12 +5,16 @@
 #include <boost/foreach.hpp>
 #include <boost/program_options.hpp>
 #include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/exact_time.h>
+#include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/time_synchronizer.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
 
 #include "imu_filter_madgwick/imu_filter.h"
 #include "imu_filter_madgwick/stateless_orientation.h"
+#include "imu_filter_madgwick/ImuFilterMadgwickConfig.h"
 #include "geometry_msgs/TransformStamped.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
@@ -29,7 +33,7 @@ class BagSubscriber : public message_filters::SimpleFilter<M>
 public:
   void newMessage(const boost::shared_ptr<M const> &msg)
   {
-    this->signalMessage(msg);
+	  message_filters::SimpleFilter<M>::signalMessage(msg);
   }
 };
 
@@ -38,16 +42,28 @@ class ImuFilterRosbag
 {
   typedef sensor_msgs::Imu              ImuMsg;
   typedef sensor_msgs::MagneticField    MagMsg;
+  typedef BagSubscriber<ImuMsg> 		ImuSubscriber;
+  typedef BagSubscriber<MagMsg> 		MagSubscriber;
+  typedef message_filters::sync_policies::ApproximateTime<ImuMsg, MagMsg> SyncPolicy;
+  typedef message_filters::Synchronizer<SyncPolicy> Synchronizer;
+  typedef imu_filter_madgwick::ImuFilterMadgwickConfig   FilterConfig;
 
   public:
 
-  ImuFilterRosbag(rosbag::Bag& bag, const std::string& output_imu_topic, const std::string& world_frame){
+  ImuFilterRosbag(rosbag::Bag* bag, const std::string& output_imu_topic, const std::string& world_frame, const bool& stateless = false){
 
-	  	bag_ = &bag;
+	  	bag_ = bag;
+	  	nb_msg_generated_ = 0;
+	  	stateless_ = stateless;
+	  	output_imu_topic_ = output_imu_topic;
 
-	  	// Use time synchronizer to make sure we get properly synchronized images
-	  	message_filters::TimeSynchronizer<sensor_msgs::Imu, sensor_msgs::MagneticField> sync(imu_sub_, mag_sub_, 25);
-	  	sync.registerCallback(boost::bind(&ImuFilterRosbag::imuMagCallback, this, _1, _2));
+		// Set up fake subscribers to capture Imu and MagneticField messages
+	  	imu_sub_.reset(new ImuSubscriber());
+	  	mag_sub_.reset(new MagSubscriber());
+
+	  	sync_.reset(new Synchronizer(
+		  SyncPolicy(50), *imu_sub_, *mag_sub_));
+		sync_->registerCallback(boost::bind(&ImuFilterRosbag::imuMagCallback, this, _1, _2));
 
 		 if (world_frame == "ned") {
 			world_frame_ = WorldFrame::NED;
@@ -64,15 +80,24 @@ class ImuFilterRosbag
     }
 
     virtual ~ImuFilterRosbag(){
-    	// Nothing
+    	// TODO: fix the following error at termination:
+    	// terminate called after throwing an instance of 'boost::exception_detail::clone_impl<boost::exception_detail::error_info_injector<boost::lock_error> >'
+    	//  what():  boost: mutex lock failed in pthread_mutex_lock: Invalid argument
+    	// Aborted
+    	//
+    	// see: https://github.com/ros/ros_comm/issues/318
+    	//      http://answers.ros.org/question/143756/rostimer-leads-to-boostlock_error-at-process-cleanup/
+    	imu_sub_.reset();
+    	mag_sub_.reset();
+    	sync_.reset();
     }
 
     void addImuMessage(sensor_msgs::Imu::ConstPtr imu){
-		imu_sub_.newMessage(imu);
+		imu_sub_->newMessage(imu);
 	}
 
 	void addMagMessage(sensor_msgs::MagneticField::ConstPtr mag){
-		mag_sub_.newMessage(mag);
+		mag_sub_->newMessage(mag);
 	}
 
 
@@ -81,25 +106,38 @@ class ImuFilterRosbag
     rosbag::Bag* bag_;
     std::string output_imu_topic_;
 
-	// Set up fake subscribers to capture Imu and MagneticField messages
-	BagSubscriber<sensor_msgs::Imu> imu_sub_;
-	BagSubscriber<sensor_msgs::MagneticField> mag_sub_;
+	boost::shared_ptr<Synchronizer> sync_;
+	boost::shared_ptr<ImuSubscriber> imu_sub_;
+	boost::shared_ptr<MagSubscriber> mag_sub_;
 
     // **** paramaters
     WorldFrame::WorldFrame world_frame_;
     bool stateless_;
-    std::string fixed_frame_;
-    std::string imu_frame_;
-    double constant_dt_;
     geometry_msgs::Vector3 mag_bias_;
     double orientation_variance_;
 
     // **** state variables
     bool initialized_;
     ros::Time last_time_;
+    int nb_msg_generated_;
 
     // **** filter implementation
     ImuFilter filter_;
+
+    void reconfigure(FilterConfig& config){
+      double gain, zeta;
+      gain = config.gain;
+      zeta = config.zeta;
+      filter_.setAlgorithmGain(gain);
+      filter_.setDriftBiasGain(zeta);
+      printf("Imu filter gain set to %f", gain);
+      printf("Gyro drift bias set to %f", zeta);
+      mag_bias_.x = config.mag_bias_x;
+      mag_bias_.y = config.mag_bias_y;
+      mag_bias_.z = config.mag_bias_z;
+      orientation_variance_ = config.orientation_stddev * config.orientation_stddev;
+      printf("Magnetometer bias values: %f %f %f", mag_bias_.x, mag_bias_.y, mag_bias_.z);
+    }
 
     // **** member functions
     void imuMagCallback(const ImuMsg::ConstPtr& imu_msg_raw,
@@ -110,7 +148,6 @@ class ImuFilterRosbag
 	  const geometry_msgs::Vector3& mag_fld = mag_msg->magnetic_field;
 
 	  ros::Time time = imu_msg_raw->header.stamp;
-	  imu_frame_ = imu_msg_raw->header.frame_id;
 
 	  /*** Compensate for hard iron ***/
 	  geometry_msgs::Vector3 mag_compensated;
@@ -178,10 +215,17 @@ class ImuFilterRosbag
 
     	  // Write msg in rosbag here
     	  bag_->write(output_imu_topic_, imu_msg->header.stamp, imu_msg);
+    	  nb_msg_generated_++;
+
+    	  if (nb_msg_generated_ % 1000 == 0){
+    		  printf("Number of filtered imu messages generated: %d \n", nb_msg_generated_);
+    	  }
     }
 };
 
 int main(int argc, char **argv){
+
+	ros::Time::init();
 
 	std::string input_rosbag = "input.bag";
 	std::string output_rosbag = "output.bag";
@@ -215,8 +259,11 @@ int main(int argc, char **argv){
 	rosbag::Bag output(output_rosbag, rosbag::bagmode::Write);
 	rosbag::Bag input(input_rosbag, rosbag::bagmode::Read);
 
-	ImuFilterRosbag filter(output, output_imu_topic, world_frame);
+	ImuFilterRosbag filter(&output, output_imu_topic, world_frame);
 
+	int nb_imu_msg_processed = 0;
+	int nb_mag_msg_processed = 0;
+	int nb_total_msg_processed = 0;
 	rosbag::View view(input);
 	BOOST_FOREACH(rosbag::MessageInstance const m, view)
 	{
@@ -224,20 +271,32 @@ int main(int argc, char **argv){
 		if (m.getTopic() == input_imu_topic || ("/" + m.getTopic() == input_imu_topic))
 		{
 		  sensor_msgs::Imu::ConstPtr imu = m.instantiate<sensor_msgs::Imu>();
-		  if (imu != NULL)
+		  if (imu != NULL){
 			  filter.addImuMessage(imu);
+			  nb_imu_msg_processed++;
+		  }
 		}
 
 		// Detect MagneticField messages from the given topic
 		if (m.getTopic() == input_mag_topic || ("/" + m.getTopic() == input_mag_topic))
 		{
 		  sensor_msgs::MagneticField::ConstPtr mag = m.instantiate<sensor_msgs::MagneticField>();
-		  if (mag != NULL)
+		  if (mag != NULL){
 			  filter.addMagMessage(mag);
+			  nb_mag_msg_processed++;
+		  }
 		}
 
-		// Write every message to output bag
-	    output.write(m.getTopic(), m.getTime(), m, m.getConnectionHeader());
+		if (m.getTopic() != output_imu_topic){
+			// Write every message to output bag
+			output.write(m.getTopic(), m.getTime(), m, m.getConnectionHeader());
+			nb_total_msg_processed++;
+		}
+
+		if (nb_total_msg_processed % 1000 == 0){
+			printf("Number of imu messages processed: %d (total %d)\n", nb_imu_msg_processed, nb_total_msg_processed);
+			printf("Number of mag messages processed: %d (total %d)\n", nb_mag_msg_processed, nb_total_msg_processed);
+		}
 	}
 
 	output.close();
