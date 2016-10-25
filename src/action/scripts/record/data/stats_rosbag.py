@@ -42,13 +42,17 @@ from optparse import OptionParser
 
 logger = logging.getLogger(__name__)
 
+
 def getStatisticsFromTimestamps(timestamps, dropThreshold=1.0):
     
     # Calculate relative times between messages
     timeDiffs = timestamps[1:] - timestamps[:-1]
     mean = np.mean(timeDiffs)
     variance = np.var(timeDiffs)
-    averageRate = 1.0/mean
+    if mean > 0.0:
+        averageRate = 1.0/mean
+    else:
+        averageRate = 0.0
     nbMsgs = len(timestamps)
     nbMsgDropped = np.count_nonzero(timeDiffs > mean*(1.0 + dropThreshold))
     
@@ -83,29 +87,37 @@ def saveHistogramsToFiles(topicTimestamps, dropThreshold, outputPath):
         plt.savefig(filename, dpi=100)
         plt.close(fig)
 
-def getTabulatedStatistics(topicTimestamps, dropThreshold):
+def getTabulatedStatistics(topicTimestamps, topicSequenceIds, dropThreshold):
 
     headers = ["Topic name", "Average Rate [Hz]", "Average Period [ms]",
-               "Std Deviation Period [ms]", "Nb of Messages", "Drop ratio [%]"]
+               "Std Deviation Period [ms]", "Nb of Messages", "Drop ratio [%] (timestamp-based)", "Drop ratio [%] (sequence-based)"]
     
     # Loop for each topic
     data = []
     for topic, timestamps in topicTimestamps.iteritems():
         
-        # Calculate statistics
+        # Calculate statistics from timestamps
         mean, variance, averageRate, nbMsgs, nbMsgDropped = getStatisticsFromTimestamps(timestamps, dropThreshold)
         
+        # Calculate statistics from sequence ids
+        ids = topicSequenceIds[topic]
+        minId, maxId = np.min(ids), np.max(ids)
+        nbMsgsSeqId = (maxId + 1) - minId
+        diff = np.setdiff1d(ids, np.arange(minId, maxId+1, dtype=np.int))
+        nbMsgDroppedSeqId = len(diff)
+        
         # Add to table
-        data.append([topic, averageRate, mean*1000.0, np.sqrt(variance)*1000.0, nbMsgs, nbMsgDropped/float(nbMsgs) * 100.0])
+        data.append([topic, averageRate, mean*1000.0, np.sqrt(variance)*1000.0, nbMsgs, nbMsgDropped/float(nbMsgs) * 100.0, nbMsgDroppedSeqId/float(nbMsgsSeqId) * 100.0])
 
     # Sort table by topic name
     data.sort(key=lambda x: x[0])
     
     return tabulate(data, headers, tablefmt="grid", numalign="right", stralign="left", floatfmt=".2f")
   
-def getAllTopicTimestamps(filename, ignoredTopics, useRosbagTime=False):
+def getAllTopicsMetadata(filename, ignoredTopics, useRosbagTime=False):
     
     topicTimestamps = dict()
+    topicSequenceIds = dict()
     with rosbag.Bag(filename) as bag:
         # Grab list of topics
         topics = bag.get_type_and_topic_info()[1].keys()
@@ -114,6 +126,7 @@ def getAllTopicTimestamps(filename, ignoredTopics, useRosbagTime=False):
         for topic in topics:
             if not topic in ignoredTopics:
                 topicTimestamps[topic] = []
+                topicSequenceIds[topic] = []
 
         # Process all messages
         for topic, msg, t in bag.read_messages():
@@ -125,12 +138,17 @@ def getAllTopicTimestamps(filename, ignoredTopics, useRosbagTime=False):
                     t = float(msg.header.stamp.to_sec())
                 topicTimestamps[topic].append(t)
                 
+                id = msg.header.seq
+                topicSequenceIds[topic].append(id)
+                
     # Convert to sorted numpy arrays
     # NOTE: sorting is important when using capture time, since they are not guaranteed
     #       to be ordered as in the rosbag.
     for topic, timestamps in topicTimestamps.iteritems():
         topicTimestamps[topic] = np.sort(np.array(timestamps))
-    return topicTimestamps
+    for topic, ids in topicSequenceIds.iteritems():
+        topicSequenceIds[topic] = np.sort(np.array(ids))
+    return topicTimestamps, topicSequenceIds
 
 def main(args=None):
 
@@ -169,15 +187,15 @@ def main(args=None):
         ignoreList = options.topicRemove.split(',')
         logger.info('Ignored topics: %s' % (options.topicRemove))
     
-    # Get timestamps from the rosbag
-    topicTimestamps = getAllTopicTimestamps(inputRosbagPath, ignoreList, options.useRosbagTime)
+    # Get timestamps and sequence ids from the rosbag
+    topicTimestamps, topicSequenceIds = getAllTopicsMetadata(inputRosbagPath, ignoreList, options.useRosbagTime)
     
     if options.saveHistograms and options.output:
         outputPath = outputStatsFilePath + '.histograms'
         saveHistogramsToFiles(topicTimestamps, options.dropThreshold, outputPath)
     
     # Print statistics to string
-    str = getTabulatedStatistics(topicTimestamps, options.dropThreshold)
+    str = getTabulatedStatistics(topicTimestamps, topicSequenceIds, options.dropThreshold)
     
     if not options.output:
         # Just print to stdout

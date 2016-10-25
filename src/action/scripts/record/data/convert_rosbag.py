@@ -108,14 +108,14 @@ def main(args=None):
                     outbag.write(topic, msg, timestamp)
                     nbTotalMessageProcessed += 1
                     
-                elif topic == '/imu/data_raw':
+                elif msg.__class__.__name__.endswith('ImuBatch'):
                     # Unbatch messages of type ImuBatch into individual Imu messages.
                     # Use the timestamps from the individual messages.
                     for m in unbatchImu(msg):
                         outbag.write(topic, m, m.header.stamp)
                         nbTotalMessageProcessed += 1
                     
-                elif topic == '/imu/mag':
+                elif msg.__class__.__name__.endswith('MagneticFieldBatch'):
                     # Unbatch messages of type MagneticFieldBatch into individual MagneticField messages.
                     # Use the timestamps from the individual messages.
                     for m in unbatchMagneticField(msg):

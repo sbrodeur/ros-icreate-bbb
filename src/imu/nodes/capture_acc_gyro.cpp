@@ -253,6 +253,7 @@ class CaptureNode {
             		nbSamplesBatch_++;
 
             		if (nbSamplesBatch_ == frameSize_){
+            			msgPosBatch_.header.stamp = ros::Time::now();
             			pubPos_.publish(msgPosBatch_);
             			nbSamplesBatch_ = 0;
             			published = true;

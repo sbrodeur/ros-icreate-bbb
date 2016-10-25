@@ -223,7 +223,6 @@ class CaptureNode {
             	}
 
             	if (frameSize_ > 1){
-
 					msgMagBatch_.stamps[nbSamplesBatch_] = ros::Time::now();
 
 					// Convert ug to Tesla
@@ -239,6 +238,7 @@ class CaptureNode {
 					nbSamplesBatch_++;
 
 					if (nbSamplesBatch_ == frameSize_){
+						msgMagBatch_.header.stamp = ros::Time::now();
 						pubMag_.publish(msgMagBatch_);
 						nbSamplesBatch_ = 0;
 						published = true;
