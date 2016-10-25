@@ -38,7 +38,7 @@ add_executable(imu_filter_rosbag src/imu_filter_rosbag.cpp)
 add_dependencies(imu_filter_rosbag ${PROJECT_NAME}_gencfg)
 target_link_libraries(imu_filter_rosbag imu_filter ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
-install(TARGETS imu_filter imu_filter_node
+install(TARGETS imu_filter imu_filter_node imu_filter_rosbag
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

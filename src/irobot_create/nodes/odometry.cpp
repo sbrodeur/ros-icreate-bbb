@@ -43,6 +43,7 @@
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_datatypes.h>
+#include "tf2_ros/transform_broadcaster.h"
 
 #include "create/create.h"
 
@@ -62,7 +63,7 @@ class OdometryNode {
         ros::NodeHandle node_;
 
         ros::Publisher odom_pub_;
-        tf::TransformBroadcaster tf_broadcaster_;
+        tf2_ros::TransformBroadcaster tf_broadcaster_;
 		nav_msgs::Odometry odom_msg_;
 		geometry_msgs::TransformStamped tf_odom_;
 

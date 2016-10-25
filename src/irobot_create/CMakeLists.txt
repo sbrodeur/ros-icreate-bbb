@@ -1,13 +1,14 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(create)
 
-find_package(Boost REQUIRED system thread)
+find_package(Boost REQUIRED COMPONENTS system thread program_options)
 find_package(Threads REQUIRED)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
   geometry_msgs
   nav_msgs
+  rosbag
   message_generation
   sensor_msgs
   tf
@@ -69,6 +70,14 @@ target_link_libraries(${PROJECT_NAME}_odometry
   ${Boost_LIBRARIES}
 )
 
+add_executable(${PROJECT_NAME}_odometry_rosbag nodes/odometry_rosbag.cpp)
+add_dependencies(${PROJECT_NAME}_odometry_rosbag ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_odometry_rosbag
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+  ${Boost_LIBRARIES}
+)
+
 ## Install
 install(TARGETS ${PROJECT_NAME} DESTINATION lib)
 install(FILES
@@ -80,7 +89,7 @@ install(FILES
         include/create/util.h
         DESTINATION include/create)
 
-install(TARGETS ${PROJECT_NAME}_driver ${PROJECT_NAME}_odometry
+install(TARGETS ${PROJECT_NAME}_driver ${PROJECT_NAME}_odometry ${PROJECT_NAME}_odometry_rosbag
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )

@@ -16,8 +16,9 @@
 #include "imu_filter_madgwick/stateless_orientation.h"
 #include "imu_filter_madgwick/ImuFilterMadgwickConfig.h"
 #include "geometry_msgs/TransformStamped.h"
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_datatypes.h>
+#include <tf2_msgs/TFMessage.h>
 
 using namespace std;
 
@@ -50,12 +51,19 @@ class ImuFilterRosbag
 
   public:
 
-  ImuFilterRosbag(rosbag::Bag* bag, const std::string& output_imu_topic, const std::string& world_frame, const bool& stateless = false){
+  ImuFilterRosbag(rosbag::Bag* bag, const std::string& output_imu_topic, const std::string& world_frame,
+		  	      const bool& stateless = false, const bool& publish_tf = false, const bool& reverse_tf = false,
+				  const std::string& imu_frame = "imu_link", const std::string& fixed_frame = "base_link"){
 
 	  	bag_ = bag;
 	  	nb_msg_generated_ = 0;
+	  	nb_tf_msg_generated_ = 0;
 	  	stateless_ = stateless;
 	  	output_imu_topic_ = output_imu_topic;
+	  	publish_tf_ = publish_tf;
+	  	reverse_tf_ = reverse_tf;
+	  	imu_frame_ = imu_frame;
+	  	fixed_frame_ = fixed_frame;
 
 		// Set up fake subscribers to capture Imu and MagneticField messages
 	  	imu_sub_.reset(new ImuSubscriber());
@@ -120,6 +128,11 @@ class ImuFilterRosbag
     bool initialized_;
     ros::Time last_time_;
     int nb_msg_generated_;
+    int nb_tf_msg_generated_;
+    bool publish_tf_;
+    bool reverse_tf_;
+    std::string imu_frame_;
+    std::string fixed_frame_;
 
     // **** filter implementation
     ImuFilter filter_;
@@ -187,6 +200,8 @@ class ImuFilterRosbag
 		  dt);
 
 	  publishFilteredMsg(imu_msg_raw);
+	  if (publish_tf_)
+	      publishTransform(imu_msg_raw);
     }
 
     void publishFilteredMsg(const ImuMsg::ConstPtr& imu_msg_raw){
@@ -221,6 +236,43 @@ class ImuFilterRosbag
     		  printf("Number of filtered imu messages generated: %d \n", nb_msg_generated_);
     	  }
     }
+
+    void publishTransform(const ImuMsg::ConstPtr& imu_msg_raw){
+
+      double q0,q1,q2,q3;
+      filter_.getOrientation(q0,q1,q2,q3);
+      geometry_msgs::TransformStamped transform;
+      transform.header.stamp = imu_msg_raw->header.stamp;
+      if (reverse_tf_)
+      {
+        transform.header.frame_id = imu_frame_;
+        transform.child_frame_id = fixed_frame_;
+        transform.transform.rotation.w = q0;
+        transform.transform.rotation.x = -q1;
+        transform.transform.rotation.y = -q2;
+        transform.transform.rotation.z = -q3;
+      }
+      else {
+        transform.header.frame_id = fixed_frame_;
+        transform.child_frame_id = imu_frame_;
+        transform.transform.rotation.w = q0;
+        transform.transform.rotation.x = q1;
+        transform.transform.rotation.y = q2;
+        transform.transform.rotation.z = q3;
+      }
+
+		// Write tf message to rosbag
+		//tf::tfMessage tf_msg;
+        tf2_msgs::TFMessage tf_msg;
+      	tf_msg.transforms.push_back(transform);
+		bag_->write("/tf", transform.header.stamp, tf_msg);
+		nb_tf_msg_generated_++;
+
+		if (nb_tf_msg_generated_ % 1000 == 0){
+			  printf("Number of tf messages generated: %d \n", nb_tf_msg_generated_);
+		}
+    }
+
 };
 
 int main(int argc, char **argv){
@@ -233,7 +285,11 @@ int main(int argc, char **argv){
 	std::string input_imu_topic = "/imu/data_raw";
 	std::string input_mag_topic = "/imu/mag";
 	std::string world_frame = "nwu";
+	std::string imu_frame = "imu_link";
+	std::string fixed_frame = "base_link";
 	bool stateless = false;
+	bool publish_tf = false;
+	bool reverse_tf = false;
 
 	namespace po = boost::program_options;
 	po::options_description desc("Allowed options");
@@ -241,11 +297,15 @@ int main(int argc, char **argv){
 	("help,h", "describe arguments")
 	("output,o", po::value(&output_rosbag), "set output rosbag file")
 	("input,i", po::value(&input_rosbag), "set input rosbag file")
-	("output-imu-topic,u", po::value(&output_imu_topic), "set topic of the output Imu messages")
-	("input-imu-topic,u", po::value(&input_imu_topic), "set topic of the input Imu messages")
-	("input-mag-topic,m", po::value(&input_mag_topic), "set topic of the input MagneticField messages")
-	("world-frame,f", po::value(&world_frame), "set the world frame")
-	("stateless,f", po::bool_switch(&stateless), "set topic of the input Imu messages");
+	("output-imu-topic,d", po::value(&output_imu_topic), "set topic of the output Imu messages")
+	("input-imu-topic,m", po::value(&input_imu_topic), "set topic of the input Imu messages")
+	("input-mag-topic,g", po::value(&input_mag_topic), "set topic of the input MagneticField messages")
+	("world-frame,w", po::value(&world_frame), "set the world frame")
+	("stateless,s", po::bool_switch(&stateless), "set topic of the input Imu messages")
+	("publish-tf,t", po::bool_switch(&publish_tf), "set to publish tf messages")
+	("reverse-tf,r", po::bool_switch(&reverse_tf), "set to reverse tf messages")
+	("imu-frame,f", po::value(&imu_frame), "set the name of the imu frame")
+	("fixed-frame,x", po::value(&fixed_frame), "set the name of the fixed frame");
 
 	po::variables_map vm;
 	po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -259,7 +319,7 @@ int main(int argc, char **argv){
 	rosbag::Bag output(output_rosbag, rosbag::bagmode::Write);
 	rosbag::Bag input(input_rosbag, rosbag::bagmode::Read);
 
-	ImuFilterRosbag filter(&output, output_imu_topic, world_frame);
+	ImuFilterRosbag filter(&output, output_imu_topic, world_frame, stateless, publish_tf, reverse_tf, imu_frame, fixed_frame);
 
 	int nb_imu_msg_processed = 0;
 	int nb_mag_msg_processed = 0;
