@@ -106,15 +106,16 @@ def main(args=None):
                     rotatedImg = img.flip('vertical').flip('horizontal')
                     msg.data = rotatedImg.as_blob()
                     outbag.write(topic, msg, timestamp)
+                    nbTotalMessageProcessed += 1
                     
-                elif isinstance(msg, ImuBatch):
+                elif topic == '/imu/data_raw':
                     # Unbatch messages of type ImuBatch into individual Imu messages.
                     # Use the timestamps from the individual messages.
                     for m in unbatchImu(msg):
                         outbag.write(topic, m, m.header.stamp)
                         nbTotalMessageProcessed += 1
                     
-                elif isinstance(msg, MagneticFieldBatch):
+                elif topic == '/imu/mag':
                     # Unbatch messages of type MagneticFieldBatch into individual MagneticField messages.
                     # Use the timestamps from the individual messages.
                     for m in unbatchMagneticField(msg):
