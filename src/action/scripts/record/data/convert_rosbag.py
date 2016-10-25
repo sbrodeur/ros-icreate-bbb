@@ -42,6 +42,37 @@ import rosbag
 
 logger = logging.getLogger(__name__)
 
+def unbatchImu(msg):
+    nbFrames = len(msg.stamps)
+    for i in range(nbFrames):
+        m = Imu()
+        m.header = msg.header
+        m.header.seq = nbFrames * msg.header.seq + i
+        m.header.frame_id = msg.header.frame_id
+        m.header.stamp = msg.stamps[i]
+        m.orientation.x = msg.orientations[i].x
+        m.orientation.y = msg.orientations[i].y
+        m.orientation.z = msg.orientations[i].z
+        m.angular_velocity.x = msg.angular_velocities[i].x
+        m.angular_velocity.y = msg.angular_velocities[i].y
+        m.angular_velocity.z = msg.angular_velocities[i].z
+        m.linear_acceleration.x = msg.linear_accelerations[i].x
+        m.linear_acceleration.y = msg.linear_accelerations[i].y
+        m.linear_acceleration.z = msg.linear_accelerations[i].z
+        yield m
+
+def unbatchMagneticField(msg):
+    nbFrames = len(msg.stamps)
+    for i in range(nbFrames):
+        m = MagneticField()
+        m.header.seq = nbFrames * msg.header.seq + i
+        m.header.frame_id = msg.header.frame_id
+        m.header.stamp = msg.stamps[i]
+        m.magnetic_field.x = msg.magnetic_fields[i].x
+        m.magnetic_field.y = msg.magnetic_fields[i].y
+        m.magnetic_field.z = msg.magnetic_fields[i].z
+        yield m
+
 def main(args=None):
 
     parser = OptionParser()
@@ -57,7 +88,6 @@ def main(args=None):
     rosBagOutPath = os.path.abspath(options.output)    
     logger.info('Using output rosbag file: %s' % (rosBagOutPath))
     
-    nbImagesProcessed = 0
     nbTotalMessageProcessed = 0
     with rosbag.Bag(rosBagOutPath, 'w') as outbag:
         with rosbag.Bag(rosBagInPath, 'r') as inbag:
@@ -65,52 +95,41 @@ def main(args=None):
             # Read all messages
             for topic, msg, timestamp in inbag.read_messages():
             
+                # Replace rosbag timestamps with the ones from the headers, if available
+                if msg._has_header:
+                    timestamp = msg.header.stamp
+                else:
+                    logger.warn('Topic %s provides messages than have no header: using timestamps from rosbag' % (topic))
+            
                 # Rotate right camera images (lossless)
                 if topic == '/video/right/compressed':
                     img = JPEGImage(blob=msg.data)
                     rotatedImg = img.flip('vertical').flip('horizontal')
                     msg.data = rotatedImg.as_blob()
-                    nbImagesProcessed += 1
                     outbag.write(topic, msg, timestamp)
-                # Extract Batch formatted magnetic field messages
-                elif topic =='/imu/mag':
-                    if hasattr(msg, 'stamps'):
-                        unbatch_topic = '/imu/mag'
-                        #for i in range(0,len(msg.stamps)):
-                        for i in range(len(msg.stamps)):
-                            newMsg = MagneticField()
-                            newMsg.header.stamp = msg.stamps[i]
-                            newMsg.magnetic_field.x = msg.magnetic_fields[i].x
-                            newMsg.magnetic_field.y = msg.magnetic_fields[i].y
-                            newMsg.magnetic_field.z = msg.magnetic_fields[i].z
-                            outbag.write(unbatch_topic, newMsg, msg.stamps[i])
-                # Extract Batch  formatted Imu messages
-                elif topic =='/imu/data_raw':
-                    if hasattr(msg, 'stamps'):
-                        unbatch_topic = '/imu/data_raw'
-                        for i in range(len(msg.stamps)):
-                            newMsg = Imu()
-                            newMsg.header.stamp = msg.stamps[i]
-                            newMsg.orientation.x = msg.orientations[i].x
-                            newMsg.orientation.y = msg.orientations[i].y
-                            newMsg.orientation.z = msg.orientations[i].z
-                            newMsg.angular_velocity.x = msg.angular_velocities[i].x
-                            newMsg.angular_velocity.y = msg.angular_velocities[i].y
-                            newMsg.angular_velocity.z = msg.angular_velocities[i].z
-                            newMsg.linear_acceleration.x = msg.linear_accelerations[i].x
-                            newMsg.linear_acceleration.y = msg.linear_accelerations[i].y
-                            newMsg.linear_acceleration.z = msg.linear_accelerations[i].z
-                            outbag.write(unbatch_topic, newMsg, msg.stamps[i])
-                else :
-                    outbag.write(topic,msg,timestamp)
-
-
-                nbTotalMessageProcessed += 1
-                
+                    
+                elif isinstance(msg, ImuBatch):
+                    # Unbatch messages of type ImuBatch into individual Imu messages.
+                    # Use the timestamps from the individual messages.
+                    for m in unbatchImu(msg):
+                        outbag.write(topic, m, m.header.stamp)
+                        nbTotalMessageProcessed += 1
+                    
+                elif isinstance(msg, MagneticFieldBatch):
+                    # Unbatch messages of type MagneticFieldBatch into individual MagneticField messages.
+                    # Use the timestamps from the individual messages.
+                    for m in unbatchMagneticField(msg):
+                        outbag.write(topic, m, m.header.stamp)
+                        nbTotalMessageProcessed += 1
+                        
+                else:
+                    outbag.write(topic, msg, timestamp)
+                    nbTotalMessageProcessed += 1
+                            
                 if nbTotalMessageProcessed % 100 == 0:
-                    logger.info('Processed %d image messages (%d total messages)' % (nbImagesProcessed, nbTotalMessageProcessed))
-    
-    logger.info('Processed %d image messages (%d total messages)' % (nbImagesProcessed, nbTotalMessageProcessed))
+                    logger.info('Processed %d messages' % (nbTotalMessageProcessed))
+                    
+    logger.info('Processed %d messages' % (nbTotalMessageProcessed))
     
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
