@@ -46,7 +46,6 @@ def unbatchImu(msg):
     nbFrames = len(msg.stamps)
     for i in range(nbFrames):
         m = Imu()
-        m.header = msg.header
         m.header.seq = nbFrames * msg.header.seq + i
         m.header.frame_id = msg.header.frame_id
         m.header.stamp = msg.stamps[i]
