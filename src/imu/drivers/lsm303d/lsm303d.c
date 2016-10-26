@@ -322,7 +322,7 @@ static const struct lsm303d_acc_platform_data default_lsm303d_acc_pdata = {
 		{0, 1, 0},
 		{0, 0, 1},
 	},
-	.poll_interval = 10,
+	.poll_interval = LSM303D_ACC_DEFAULT_POLL_PERIOD_MS,
 	.min_interval = LSM303D_ACC_MIN_POLL_PERIOD_MS,
 	.aa_filter_bandwidth = ANTI_ALIASING_773,
 	.gpio_int1 = DEFAULT_INT1_GPIO,
@@ -330,7 +330,7 @@ static const struct lsm303d_acc_platform_data default_lsm303d_acc_pdata = {
 };
 
 static const struct lsm303d_mag_platform_data default_lsm303d_mag_pdata = {
-	.poll_interval = 10,
+	.poll_interval = LSM303D_MAG_DEFAULT_POLL_PERIOD_MS,
 	.min_interval = LSM303D_MAG_MIN_POLL_PERIOD_MS,
 	.fs_range = LSM303D_MAG_FS_2G,
 	.rot_matrix = {
