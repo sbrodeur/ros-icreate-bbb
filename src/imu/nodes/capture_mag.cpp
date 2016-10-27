@@ -151,58 +151,69 @@ class CaptureNode {
         void applyMagneticCorrection(geometry_msgs::Vector3& magnetic_field){
 
 			//Correction constants
-			const float magRotz[3][3] = { {        1.0,        0.0, -0.06722939  } ,
-										  {        0.0,        1.0,-0.00410318  } ,
-										  {0.07208762, 0.00412011,        1.0  } };
+			const float magRotz[3][3] = { {        1.0,        0.0, -0.07321487  } ,
+										  {        0.0,        1.0, -0.00444791  } ,
+										  {0.07901695 , 0.00446781,        1.0  } };
 
-			const float magRotxy[3][3] = { {-0.716796,-0.69728293,        0.0  } ,
-										   {0.69728293,-0.716796,        0.0  } ,
-										   {        0.0,        0.0,        1.0  } };
-			const float magFacxy[2] = { 0.93515957, 1.07450191};
+			const float magRotxy[3][3] = { { 0.76908318 ,-0.6391487 ,       0.0  } ,
+										   { 0.6391487  , 0.76908318,       0.0  } ,
+										   {        0.0,        0.0 ,       1.0  } };
+			const float magFacxy[2] = { 1.07176589 , 0.9372419};
 
-			const float xOffset = 0.000003628;
-			const float yOffset = 0.00003196;
-			const float zOffset = -0.000032072;
+			const float xOffset = 0.000010176;
+			const float yOffset = 0.00004176;
+			const float zOffset = -0.000029264;
 
-			//Apply centering offsets (hard-iron correction)
+            float temp_mag_field_x = 0.0;
+            float temp_mag_field_y = 0.0;
+            float temp_mag_field_z = 0.0;
+
+			
+            float temp_mag_field_soft_x = 0.0;
+            float temp_mag_field_soft_y = 0.0;
+            float temp_mag_field_soft_z = 0.0;
+            
+            //Apply centering offsets (hard-iron correction)
 			magnetic_field.x -= xOffset;
 			magnetic_field.y -= yOffset;
 			magnetic_field.z -= zOffset;
 
-			//Apply bank correction
-			magnetic_field.x = magRotz[0][0]*magnetic_field.x +
+			
+            
+            //Apply bank correction
+			temp_mag_field_x = magRotz[0][0]*magnetic_field.x +
 							   magRotz[0][1]*magnetic_field.y +
 							   magRotz[0][2]*magnetic_field.z  ;
-			magnetic_field.y = magRotz[1][0]*magnetic_field.x +
+			temp_mag_field_y = magRotz[1][0]*magnetic_field.x +
 							   magRotz[1][1]*magnetic_field.y +
 							   magRotz[1][2]*magnetic_field.z  ;
-			magnetic_field.z = magRotz[2][0]*magnetic_field.x +
+			temp_mag_field_z = magRotz[2][0]*magnetic_field.x +
 							   magRotz[2][1]*magnetic_field.y +
 							   magRotz[2][2]*magnetic_field.z  ;
 
-//			//Apply soft-iron correction
-//			msg.magnetic_field.x = magRotxy[0][0]*msg.magnetic_field.x +
-//								   magRotxy[0][1]*msg.magnetic_field.y +
-//							       magRotxy[0][2]*msg.magnetic_field.z  ;
-//			msg.magnetic_field.y = magRotxy[1][0]*msg.magnetic_field.x +
-//								   magRotxy[1][1]*msg.magnetic_field.y +
-//								   magRotxy[1][2]*msg.magnetic_field.z  ;
-//			msg.magnetic_field.z = magRotxy[2][0]*msg.magnetic_field.x +
-//								   magRotxy[2][1]*msg.magnetic_field.y +
-//								   magRotxy[2][2]*msg.magnetic_field.z  ;
-//
-//			msg.magnetic_field.x *= magFacxy[0];
-//			msg.magnetic_field.y *= magFacxy[1];
-//
-//			msg.magnetic_field.x = magRotxy[0][0]*msg.magnetic_field.x +
-//								   magRotxy[1][0]*msg.magnetic_field.y +
-//								   magRotxy[2][0]*msg.magnetic_field.z  ;
-//			msg.magnetic_field.y = magRotxy[0][1]*msg.magnetic_field.x +
-//								   magRotxy[1][1]*msg.magnetic_field.y +
-//								   magRotxy[2][1]*msg.magnetic_field.z  ;
-//			msg.magnetic_field.z = magRotxy[0][2]*msg.magnetic_field.x +
-//								   magRotxy[1][2]*msg.magnetic_field.y +
-//								   magRotxy[2][2]*msg.magnetic_field.z  ;
+			//Apply soft-iron correction
+			temp_mag_field_soft_x = magRotxy[0][0]*temp_mag_field_x +
+								    magRotxy[0][1]*temp_mag_field_y +
+							        magRotxy[0][2]*temp_mag_field_z  ;
+			temp_mag_field_soft_y = magRotxy[1][0]*temp_mag_field_x +
+								    magRotxy[1][1]*temp_mag_field_y +
+								    magRotxy[1][2]*temp_mag_field_z  ;
+			temp_mag_field_soft_z = magRotxy[2][0]*temp_mag_field_x +
+								    magRotxy[2][1]*temp_mag_field_y +
+								    magRotxy[2][2]*temp_mag_field_z  ;
+
+			temp_mag_field_soft_x *= magFacxy[0];
+			temp_mag_field_soft_y *= magFacxy[1];
+
+			magnetic_field.x = magRotxy[0][0]*temp_mag_field_soft_x +
+							   magRotxy[1][0]*temp_mag_field_soft_y +
+							   magRotxy[2][0]*temp_mag_field_soft_z  ;
+			magnetic_field.y = magRotxy[0][1]*temp_mag_field_soft_x +
+							   magRotxy[1][1]*temp_mag_field_soft_y +
+							   magRotxy[2][1]*temp_mag_field_soft_z  ;
+			magnetic_field.z = magRotxy[0][2]*temp_mag_field_soft_x +
+							   magRotxy[1][2]*temp_mag_field_soft_y +
+							   magRotxy[2][2]*temp_mag_field_soft_z  ;
 		}
 
         bool spin() {

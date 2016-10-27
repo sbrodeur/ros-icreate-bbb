@@ -37,7 +37,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 import rospy
-from sensor_msgs.msg import MagneticField
+from imu.msg import MagneticFieldBatch
 
 logger = logging.getLogger(__name__)
 
@@ -120,10 +120,10 @@ class DataRecorder:
         self.data = []
   
         input = rospy.get_param('~input', '/imu/mag')
-        rospy.Subscriber(input, MagneticField, self.callback)
+        rospy.Subscriber(input, MagneticFieldBatch, self.callback)
   
     def callback(self, msg):
-        vector = np.array([msg.magnetic_field.x, msg.magnetic_field.y, msg.magnetic_field.z], dtype=np.float64)
+        vector = np.array([msg.magnetic_fields[-1].x, msg.magnetic_fields[-1].y, msg.magnetic_fields[-1].z], dtype=np.float64)
         self.data.append(vector)
         
     def spin(self, timeout=None):
