@@ -85,6 +85,8 @@ class ImuFilterRosbag
 			world_frame_ = WorldFrame::ENU;
 		  }
 		  filter_.setWorldFrame(world_frame_);
+
+      filter_.setAlgorithmGain(0.1);
     }
 
     virtual ~ImuFilterRosbag(){
