@@ -247,9 +247,9 @@ static s32 bmp085_get_pressure(struct bmp085_data *data, int *pressure)
 	s32 p;
 	int status;
 
-	/* alt least every second force an update of the ambient temperature */
-	if ((data->last_temp_measurement == 0) ||
-	    time_is_before_jiffies(data->last_temp_measurement + 1*HZ)) {
+	/* alt least every half second force an update of the ambient temperature */
+  if ((data->last_temp_measurement == 0) ||
+	    time_is_before_jiffies(data->last_temp_measurement + HZ/2)) {
 		status = bmp085_get_temperature(data, NULL);
 		if (status < 0)
 			return status;
