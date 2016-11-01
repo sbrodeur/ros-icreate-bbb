@@ -205,8 +205,8 @@ def exportPositionFramesAsVideo(framesPos, framesOri, fs, filename, title, grid=
             quaternion = np.array([w,x,y,z])
             R = quat2mat(quaternion)
             
-            # Apply the rotation to the vector pointing in the forward direction (y-axis)
-            direction = np.array([0.0, 1.0, 0.0])
+            # Apply the rotation to the vector pointing in the forward direction (x-axis)
+            direction = np.array([1.0, 0.0, 0.0])
             vector = np.dot(R, direction)
             vector /= np.linalg.norm(vector, 2)
             

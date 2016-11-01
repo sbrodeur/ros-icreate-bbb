@@ -13,6 +13,7 @@ for data in $(find ${DATASET_DIRECTORY} -name '*.h5'); do
 	INPUT_DATASET_FILE="${data}"
 	OUTPUT_VISUALIZATION_FILE="${data%.h5}.mp4"
 	OUTPUT_VISUALIZATION_PREVIEW_FILE="${data%.h5}.preview.mp4"
+	TMPDIR="${data%.h5}.visualization"
 	
 	if [ -f $OUTPUT_VISUALIZATION_FILE ]; then
 		echo "Output dataset ${OUTPUT_VISUALIZATION_FILE} already found"
@@ -21,7 +22,7 @@ for data in $(find ${DATASET_DIRECTORY} -name '*.h5'); do
 	fi
 	
 	# Create videos for all sensors
-	TMPDIR=`mktemp -d`
+	mkdir -p ${TMPDIR}
 	echo "Using temporary directory ${TMPDIR}"
 	python ${DIR}/visualize_hdf5.py --input=$INPUT_DATASET_FILE --output-dir=$TMPDIR --nb-processes=-1 --downsample-ratio=4
 	
@@ -55,8 +56,8 @@ for data in $(find ${DATASET_DIRECTORY} -name '*.h5'); do
 	# Create a fast-forward (10x) preview video without audio
 	ffmpeg -i $OUTPUT_VISUALIZATION_FILE -vf "setpts=(1/10)*PTS" -an $OUTPUT_VISUALIZATION_PREVIEW_FILE
 	
-	echo "Removing all visualization temporary files"
-	rm -rf $TMPDIR
+	#echo "Removing all visualization temporary files"
+	#rm -rf $TMPDIR
 	
 done
 

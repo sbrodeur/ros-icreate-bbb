@@ -37,7 +37,7 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do
 		exit 1
 	fi
 	
-	python ${DIR}/sync_hdf5.py --input=$OUTPUT_DATASET_FILE_HDF5_SORT --output=$OUTPUT_DATASET_FILE_HDF5_SYNC --fs=20 --interpolation=nearest
+	python ${DIR}/sync_hdf5.py --input=$OUTPUT_DATASET_FILE_HDF5_SORT --output=$OUTPUT_DATASET_FILE_HDF5_SYNC --fs=100 --interpolation=nearest
 	if ! [ -f $OUTPUT_DATASET_FILE_HDF5_SYNC ]; then
 		echo "Could not find temporary file ${OUTPUT_DATASET_FILE_HDF5_SYNC}. An error probably occured during conversion."
 		exit 1

@@ -77,23 +77,26 @@ ln -s /opt/ros/kinetic/share/catkin/cmake/toplevel.cmake src/CMakeLists.txt
 
 Compile workspace with catkin:
 ```
-alias catkin_make="catkin_make -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS=-O3 -DCMAKE_CXX_FLAGS=-O3"
+CATKIN_COMPILE_FLAGS="\"-O3 -save-temps --param ggc-min-expand=10 --param ggc-min-heapsize=4096\""
+alias catkin_make="catkin_make -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS=$CATKIN_COMPILE_FLAGS -DCMAKE_CXX_FLAGS=$CATKIN_COMPILE_FLAGS"
 catkin_make
 ```
 
 ## Dataset specifications
 
 Sensors recorded:
-* Left and right RGB cameras (640x480, JPEG, 13 fps)
-* Left and right microphones (16000 Hz sampling rate, 128 ms frame length)
-* Inertial measurement unit: accelerometer, gyroscope, magnetometer (20 Hz sampling rate)
-* Battery and charging state (14 Hz sampling rate)
-* Left and right motor velocities (14 Hz sampling rate)
-* Infrared sensors (14 Hz sampling rate)
-* Contact sensors (14 Hz sampling rate)
-* Odometry (14 Hz sampling rate)
+* Left and right RGB cameras (320x240, JPEG, 30 Hz sampling rate)
+* Left and right microphones (16000 Hz sampling rate, 64 ms frame length)
+* Inertial measurement unit: accelerometer, gyroscope, magnetometer (90 Hz sampling rate)
+* Battery and charging state (50 Hz sampling rate)
+* Left and right motor velocities (50 Hz sampling rate)
+* Infrared sensors (50 Hz sampling rate)
+* Contact sensors (50 Hz sampling rate)
+* Odometry (50 Hz sampling rate)
+* Atmospheric pressure (50 Hz sampling rate)
+* Air temperature (1 Hz sampling rate)
 
-Note that the odometry based on the internal wheel sensors only may not be as accurate as the on estimated from the inertial measurement unit.
+Note that the odometry distance is based on the internal wheel sensors (velocities) may not be accurate.
 
 Other information included:
 * Room location, date and time of the session.
