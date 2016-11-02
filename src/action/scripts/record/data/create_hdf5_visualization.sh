@@ -24,10 +24,10 @@ for data in $(find ${DATASET_DIRECTORY} -name '*.h5'); do
 	# Create videos for all sensors
 	mkdir -p ${TMPDIR}
 	echo "Using temporary directory ${TMPDIR}"
-	python ${DIR}/visualize_hdf5.py --input=$INPUT_DATASET_FILE --output-dir=$TMPDIR --nb-processes=-1 --fs-video=5
+	python ${DIR}/visualize_hdf5.py --input=$INPUT_DATASET_FILE --output-dir=$TMPDIR --nb-processes=-1 --fs-video=5 --sensors=video,audio,orientation,imu-mag,imu-accel,imu-gyro
 	
 	# Tile all videos into a mosaic and add stereo audio
-	ffmpeg \
+	ffmpeg -y \
 	-i $TMPDIR/video_left.avi -i $TMPDIR/video_right.avi -i $TMPDIR/imu_linear_acceleration.avi -i $TMPDIR/imu_angular_velocity.avi -i $TMPDIR/imu_magnetic_field.avi -i $TMPDIR/imu_orientation.avi -i $TMPDIR/audio_left-right.wav \
 	-filter_complex "
 		nullsrc=size=1280x720 [base];
@@ -54,7 +54,7 @@ for data in $(find ${DATASET_DIRECTORY} -name '*.h5'); do
 	fi
 	
 	# Create a fast-forward (10x) preview video without audio
-	ffmpeg -i $OUTPUT_VISUALIZATION_FILE -vf "setpts=(1/10)*PTS" -an $OUTPUT_VISUALIZATION_PREVIEW_FILE
+	ffmpeg -y -i $OUTPUT_VISUALIZATION_FILE -vf "setpts=(1/10)*PTS" -an $OUTPUT_VISUALIZATION_PREVIEW_FILE
 	
 	#echo "Removing all visualization temporary files"
 	#rm -rf $TMPDIR
