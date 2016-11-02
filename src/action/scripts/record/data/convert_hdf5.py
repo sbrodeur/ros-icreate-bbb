@@ -107,7 +107,7 @@ class StateSaver(object):
             
             self.countProcessed += 1
         
-        if topic == '/imu/pressure':
+        if topic == '/imu/baro' or topic == '/imu/pressure':
 
             # Barometer pressure
             state = np.array([msg.fluid_pressure], dtype=np.float64)

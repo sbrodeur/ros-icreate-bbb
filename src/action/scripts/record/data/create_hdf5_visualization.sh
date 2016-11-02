@@ -24,7 +24,7 @@ for data in $(find ${DATASET_DIRECTORY} -name '*.h5'); do
 	# Create videos for all sensors
 	mkdir -p ${TMPDIR}
 	echo "Using temporary directory ${TMPDIR}"
-	python ${DIR}/visualize_hdf5.py --input=$INPUT_DATASET_FILE --output-dir=$TMPDIR --nb-processes=-1 --downsample-ratio=4
+	python ${DIR}/visualize_hdf5.py --input=$INPUT_DATASET_FILE --output-dir=$TMPDIR --nb-processes=-1 --fs-video=5
 	
 	# Tile all videos into a mosaic and add stereo audio
 	ffmpeg \

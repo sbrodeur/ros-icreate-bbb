@@ -95,7 +95,11 @@ def quat2mat(q):
             [ xY+wZ, 1.0-(xX+zZ), yZ-wX ],
             [ xZ-wY, yZ+wX, 1.0-(xX+yY) ]])
 
-def exportQuaternionFramesAsVideo(frames, fs, filename, title, grid=False, downsampleRatio=1):
+def exportQuaternionFramesAsVideo(frames, fs, filename, title, grid=False, fsVideo=None):
+
+    if fsVideo is None:
+        fsVideo = fs
+    downsampleRatio = np.max([1, int(fs/fsVideo)])
 
     # Create the video file writer
     writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
@@ -166,8 +170,12 @@ def exportQuaternionFramesAsVideo(frames, fs, filename, title, grid=False, downs
     plt.close(fig)
 
 
-def exportPositionFramesAsVideo(framesPos, framesOri, fs, filename, title, grid=False, downsampleRatio=1):
+def exportPositionFramesAsVideo(framesPos, framesOri, fs, filename, title, grid=False, fsVideo=None):
     assert len(framesPos) == len(framesOri)
+
+    if fsVideo is None:
+        fsVideo = fs
+    downsampleRatio = np.max([1, int(fs/fsVideo)])
 
     # Create the video file writer
     writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
@@ -235,10 +243,14 @@ def exportPositionFramesAsVideo(framesPos, framesOri, fs, filename, title, grid=
     
     plt.close(fig)
 
-def exportBatteryFramesAsVideo(frames, fs, filename, title, labels, ylim=None, windowSize=None, grid=False, legend=None, downsampleRatio=1):
+def exportBatteryFramesAsVideo(frames, fs, filename, title, labels, ylim=None, windowSize=None, grid=False, legend=None, fsVideo=None):
     
     ndim = 2
     assert frames.shape[1] == ndim
+    
+    if fsVideo is None:
+        fsVideo = fs
+    downsampleRatio = np.max([1, int(fs/fsVideo)])
     
     # Create the video file writer
     writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
@@ -302,10 +314,14 @@ def exportBatteryFramesAsVideo(frames, fs, filename, title, labels, ylim=None, w
     plt.close(fig)
 
 
-def exportSensorFramesAsVideo(frames, fs, filename, title, labels, ylim=None, windowSize=None, grid=False, legend=None, downsampleRatio=1):
+def exportSensorFramesAsVideo(frames, fs, filename, title, labels, ylim=None, windowSize=None, grid=False, legend=None, fsVideo=None):
     
     ndim = frames.shape[1]
     assert ndim <= 6
+            
+    if fsVideo is None:
+        fsVideo = fs
+    downsampleRatio = np.max([1, int(fs/fsVideo)])
             
     # Create the video file writer
     writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
@@ -372,10 +388,14 @@ def exportSensorFramesAsVideo(frames, fs, filename, title, labels, ylim=None, wi
     plt.close(fig)
 
 
-def exportBatteryStatusFramesAsVideo(frames, fs, filename, title, labels=['Time [sec]', 'Status'], windowSize=None, downsampleRatio=1):
+def exportBatteryStatusFramesAsVideo(frames, fs, filename, title, labels=['Time [sec]', 'Status'], windowSize=None, fsVideo=None):
     
     ndim = frames.shape[1]
     assert ndim <= 1
+
+    if fsVideo is None:
+        fsVideo = fs
+    downsampleRatio = np.max([1, int(fs/fsVideo)])
             
     # Create the video file writer
     writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
@@ -427,7 +447,7 @@ def exportBatteryStatusFramesAsVideo(frames, fs, filename, title, labels=['Time 
     
     plt.close(fig)
 
-def processIRrange(dataset, outDirPath, downsampleRatio=1):
+def processIRrange(dataset, outDirPath, fsVideo=None):
 
     group = 'collision'
     name = 'range'
@@ -449,9 +469,9 @@ def processIRrange(dataset, outDirPath, downsampleRatio=1):
     labels = ['Time [sec]', "Amplitude"]
     ylim=[0, 0.25]
     legend = ['Wall', 'Cliff left', 'Cliff front-left', 'Cliff front-right', 'Cliff right']
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
 
-def processContacts(dataset, outDirPath, name=None, downsampleRatio=1):
+def processContacts(dataset, outDirPath, name=None, fsVideo=None):
 
     group = 'collision'
     names = ['contact', 'cliff', 'wheel-drop']
@@ -496,9 +516,9 @@ def processContacts(dataset, outDirPath, name=None, downsampleRatio=1):
         labels = ['Time [sec]', "Activation"]
         ylim = 'boolean'
               
-        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
 
-def processBattery(dataset, outDirPath, downsampleRatio=1):
+def processBattery(dataset, outDirPath, fsVideo=None):
 
     group = 'battery'
     name = 'charge'
@@ -508,24 +528,25 @@ def processBattery(dataset, outDirPath, downsampleRatio=1):
     fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
     logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
     windowSize = 2*fs
-
+    
+    name = 'charge-voltage'
     outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
     logger.info('Writing to output video file %s' % (outputVideoFile))
 
-    # Select only the subset related to battery voltage and current
+    # Select only the subset related to battery voltage and current (respectively)
     raw = np.array(raw[:,[0,1]], dtype=np.float32)
 
-    # Convert voltage from mV to V
-    raw[:,0] = raw[:,0]/1000.0
+    # Convert current from A to mA
+    raw[:,1] = raw[:,1]*1000.0
 
     title = 'Battery'
     labels = ['Time [sec]', "Voltage [V]", 'Current [mA]']
-    ylim=[[10.0, 18.0], [-1000.0, 1000.0]]
+    ylim=[[10.0, 18.0], [-2000.0, 2000.0]]
     legend = ['Voltage', 'Current']
     
-    exportBatteryFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportBatteryFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
 
-def processBatteryCharge(dataset, outDirPath, downsampleRatio=1):
+def processBatteryCharge(dataset, outDirPath, fsVideo=None):
 
     group = 'battery'
     name = 'charge'
@@ -542,15 +563,18 @@ def processBatteryCharge(dataset, outDirPath, downsampleRatio=1):
     # Select only the subset related to battery charge
     raw = np.array(raw[:,[2,]], dtype=np.float32)
 
+    # Convert charge from Ah to mAh
+    raw = raw * 1000.0
+
     title = 'Battery charge'
     labels = ['Time [sec]', "Charge [mAh]"]
     ylim=[0.0, 4000.0]
     legend = None
     
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
 
 
-def processBatteryPercentage(dataset, outDirPath, downsampleRatio=1):
+def processBatteryPercentage(dataset, outDirPath, fsVideo=None):
 
     group = 'battery'
     name = 'charge'
@@ -573,9 +597,9 @@ def processBatteryPercentage(dataset, outDirPath, downsampleRatio=1):
     ylim=[0.0, 105.0]
     legend = None
     
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
 
-def processBatteryStatus(dataset, outDirPath, downsampleRatio=1):
+def processBatteryStatus(dataset, outDirPath, fsVideo=None):
 
     group = 'battery'
     name = 'status'
@@ -594,10 +618,10 @@ def processBatteryStatus(dataset, outDirPath, downsampleRatio=1):
 
     title = 'Battery status'
     labels = ['Time [sec]', "Status"]
-    exportBatteryStatusFramesAsVideo(raw, fs, outputVideoFile, title, labels, windowSize=int(2*fs), downsampleRatio=downsampleRatio)
+    exportBatteryStatusFramesAsVideo(raw, fs, outputVideoFile, title, labels, windowSize=int(2*fs), fsVideo=fsVideo)
 
 
-def processPosition(dataset, outDirPath, downsampleRatio=1):
+def processPosition(dataset, outDirPath, fsVideo=None):
     group = 'odometry'
     name = 'position'
     [_, _, rawPos, clock, _] = dataset.getStates(name, group)
@@ -617,9 +641,9 @@ def processPosition(dataset, outDirPath, downsampleRatio=1):
     logger.info('Writing to output video file %s' % (outputVideoFile))
 
     title = 'Odometry position and orientation (x-y)'
-    exportPositionFramesAsVideo(rawPos, rawOri, fs, outputVideoFile, title, grid=True, downsampleRatio=downsampleRatio)
+    exportPositionFramesAsVideo(rawPos, rawOri, fs, outputVideoFile, title, grid=True, fsVideo=fsVideo)
     
-def processOrientation(dataset, outDirPath, downsampleRatio=1, rawValues=False):
+def processOrientation(dataset, outDirPath, fsVideo=None, rawValues=False):
     group = 'imu'
     
     if rawValues:
@@ -638,10 +662,10 @@ def processOrientation(dataset, outDirPath, downsampleRatio=1, rawValues=False):
     logger.info('Writing to output video file %s' % (outputVideoFile))
 
     title = 'Orientation'
-    exportQuaternionFramesAsVideo(raw, fs, outputVideoFile, title, grid=False, downsampleRatio=downsampleRatio)
+    exportQuaternionFramesAsVideo(raw, fs, outputVideoFile, title, grid=False, fsVideo=fsVideo)
     
     
-def processMotors(dataset, outDirPath, downsampleRatio=1):
+def processMotors(dataset, outDirPath, fsVideo=None):
     group = 'motors'
     name = 'speed'
     [_, _, raw, clock, shape] = dataset.getStates(name, group)
@@ -658,9 +682,9 @@ def processMotors(dataset, outDirPath, downsampleRatio=1):
     labels = ['Time [sec]', "Motor velocity [mm/s]"]
     ylim=[-250, 250]
     legend = ['left', 'right']
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
     
-def processImu(dataset, outDirPath, name=None, downsampleRatio=1):
+def processImu(dataset, outDirPath, name=None, fsVideo=None):
     group = 'imu'
     names = {'imu-gyro':'angular_velocity', 'imu-accel':'linear_acceleration', 'imu-mag':'magnetic_field'}
 
@@ -696,9 +720,9 @@ def processImu(dataset, outDirPath, name=None, downsampleRatio=1):
             ylim=[-50.0, 50.0]
         legend = ['x-axis', 'y-axis', 'z-axis']
         
-        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
         
-def processImuRaw(dataset, outDirPath, name=None, downsampleRatio=1):
+def processImuRaw(dataset, outDirPath, name=None, fsVideo=None):
     group = 'imu'
     names = {'imu-gyro-raw':'angular_velocity_raw', 'imu-accel-raw':'linear_acceleration_raw'}
 
@@ -729,10 +753,10 @@ def processImuRaw(dataset, outDirPath, name=None, downsampleRatio=1):
             ylim=[-12.0, 12.0]
         legend = ['x-axis', 'y-axis', 'z-axis']
         
-        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
         
         
-def processAudioSignal(dataset, outDirPath, name=None, fs=16000, tolerance=0.25, downsampleRatio=1.0):
+def processAudioSignal(dataset, outDirPath, name=None, fs=16000, tolerance=0.25, fsVideo=None):
     group = 'audio'
     names = {'audio-signal-left':'left', 'audio-signal-right':'right'}
 
@@ -756,8 +780,6 @@ def processAudioSignal(dataset, outDirPath, name=None, fs=16000, tolerance=0.25,
             logger.warn('Audio clock is incoherent: audio length is %f sec, but clock says %f sec' % (audioLength, referenceLength))
 
         raw = np.array(raw.flatten(), dtype=np.float32)[:,np.newaxis] / np.iinfo('int16').max
-        windowSize = 2*fs
-        downsampleRatio *= int(fs/5)
 
         outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
         logger.info('Writing to output video file %s' % (outputVideoFile))
@@ -771,9 +793,9 @@ def processAudioSignal(dataset, outDirPath, name=None, fs=16000, tolerance=0.25,
         ylim=[-1.0, 1.0]
         legend = None
         
-        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+        exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
         
-def processTemperature(dataset, outDirPath, downsampleRatio=1.0):
+def processTemperature(dataset, outDirPath, fsVideo=None):
     group = 'imu'
     name = 'temperature'
 
@@ -792,9 +814,9 @@ def processTemperature(dataset, outDirPath, downsampleRatio=1.0):
     ylim=[15.0, 50.0]
     legend = None
     
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
         
-def processPressure(dataset, outDirPath, downsampleRatio=1.0):
+def processPressure(dataset, outDirPath, fsVideo=None):
     group = 'imu'
     name = 'pressure'
 
@@ -808,6 +830,9 @@ def processPressure(dataset, outDirPath, downsampleRatio=1.0):
     outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
     logger.info('Writing to output video file %s' % (outputVideoFile))
 
+    # Convert from Pa to kPa
+    raw = raw / 1000.0
+
     title = 'Atmospheric pressure'
     labels = ['Time [sec]', "Pressure [kPa]"]
     normalPressure = 101.325 # Average sea-level pressure
@@ -815,9 +840,9 @@ def processPressure(dataset, outDirPath, downsampleRatio=1.0):
     ylim=[normalPressure - variation, normalPressure + variation]
     legend = None
     
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
         
-def processOdometryTwistAngular(dataset, outDirPath, downsampleRatio):
+def processOdometryTwistAngular(dataset, outDirPath, fsVideo=None):
     group = 'odometry'
     name = 'twist_angular'
 
@@ -836,10 +861,10 @@ def processOdometryTwistAngular(dataset, outDirPath, downsampleRatio):
     ylim=[-2.0, 2.0]
     legend = ['x-axis', 'y-axis', 'z-axis']
 
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
         
 
-def processOdometryTwistLinear(dataset, outDirPath, downsampleRatio):
+def processOdometryTwistLinear(dataset, outDirPath, fsVideo=None):
     group = 'odometry'
     name = 'twist_linear'
 
@@ -858,7 +883,7 @@ def processOdometryTwistLinear(dataset, outDirPath, downsampleRatio):
     ylim=[-0.5, 0.5]
     legend = ['x-axis', 'y-axis', 'z-axis']
 
-    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, downsampleRatio=downsampleRatio)
+    exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
         
 def processAudio(dataset, outDirPath, fs=16000, tolerance=0.25):
     group = 'audio'
@@ -930,58 +955,58 @@ def processVideo(dataset, outDirPath):
         elapsedTime = time.time() - startTime
         logger.info('FPS = %f frame/sec' % (nbFrames/elapsedTime))
 
-def process(name, datasetPath, outDirPath, downsampleRatio=1):
+def process(name, datasetPath, outDirPath, fsVideo=None):
     with Hdf5Dataset(datasetPath, mode='r') as dataset:
         if name == 'position':
-            processPosition(dataset, outDirPath, downsampleRatio)
+            processPosition(dataset, outDirPath, fsVideo)
         elif name == 'orientation':
-            processOrientation(dataset, outDirPath, downsampleRatio)
+            processOrientation(dataset, outDirPath, fsVideo)
         elif name == 'orientation-raw':
-            processOrientation(dataset, outDirPath, downsampleRatio, rawValues=True)
+            processOrientation(dataset, outDirPath, fsVideo, rawValues=True)
         elif name == 'motors':
-            processMotors(dataset, outDirPath, downsampleRatio)
+            processMotors(dataset, outDirPath, fsVideo)
         elif name == 'video':
             processVideo(dataset, outDirPath)
         elif name == 'imu-accel':
-            processImu(dataset, outDirPath, name, downsampleRatio)
+            processImu(dataset, outDirPath, name, fsVideo)
         elif name == 'imu-gyro':
-            processImu(dataset, outDirPath, name, downsampleRatio)
+            processImu(dataset, outDirPath, name, fsVideo)
         elif name == 'imu-mag':
-            processImu(dataset, outDirPath, name, downsampleRatio)
+            processImu(dataset, outDirPath, name, fsVideo)
         elif name == 'imu-accel-raw':
-            processImuRaw(dataset, outDirPath, name, downsampleRatio)
+            processImuRaw(dataset, outDirPath, name, fsVideo)
         elif name == 'imu-gyro-raw':
-            processImuRaw(dataset, outDirPath, name, downsampleRatio)
+            processImuRaw(dataset, outDirPath, name, fsVideo)
         elif name == 'range':
-            processIRrange(dataset, outDirPath, downsampleRatio)
+            processIRrange(dataset, outDirPath, fsVideo)
         elif name == 'contact':
-            processContacts(dataset, outDirPath, name, downsampleRatio)
+            processContacts(dataset, outDirPath, name, fsVideo)
         elif name == 'wheel-drop':
-            processContacts(dataset, outDirPath, name, downsampleRatio)
+            processContacts(dataset, outDirPath, name, fsVideo)
         elif name == 'cliff':
-            processContacts(dataset, outDirPath, name, downsampleRatio)
+            processContacts(dataset, outDirPath, name, fsVideo)
         elif name == 'battery':
-            processBattery(dataset, outDirPath, downsampleRatio)
+            processBattery(dataset, outDirPath, fsVideo)
         elif name == 'battery-charge':
-            processBatteryCharge(dataset, outDirPath, downsampleRatio)
+            processBatteryCharge(dataset, outDirPath, fsVideo)
         elif name == 'battery-percentage':
-            processBatteryPercentage(dataset, outDirPath, downsampleRatio)
+            processBatteryPercentage(dataset, outDirPath, fsVideo)
         elif name == 'battery-status':
-            processBatteryStatus(dataset, outDirPath, downsampleRatio)
+            processBatteryStatus(dataset, outDirPath, fsVideo)
         elif name == 'audio':
             processAudio(dataset, outDirPath)
         elif name == 'audio-signal-left':
-            processAudioSignal(dataset, outDirPath, name)
+            processAudioSignal(dataset, outDirPath, name, fsVideo=fsVideo)
         elif name == 'audio-signal-right':
-            processAudioSignal(dataset, outDirPath, name)
+            processAudioSignal(dataset, outDirPath, name, fsVideo=fsVideo)
         elif name == 'twist_linear':
-            processOdometryTwistLinear(dataset, outDirPath, downsampleRatio)
+            processOdometryTwistLinear(dataset, outDirPath, fsVideo)
         elif name == 'twist_angular':
-            processOdometryTwistAngular(dataset, outDirPath, downsampleRatio)
+            processOdometryTwistAngular(dataset, outDirPath, fsVideo)
         elif name == 'imu-temperature':
-            processTemperature(dataset, outDirPath, downsampleRatio)
+            processTemperature(dataset, outDirPath, fsVideo)
         elif name == 'imu-pressure':
-            processPressure(dataset, outDirPath, downsampleRatio)
+            processPressure(dataset, outDirPath, fsVideo)
         else:
             raise Exception('Unknown name: %s' % (name))
 
@@ -994,8 +1019,8 @@ def main(args=None):
                       help='specify the path of the output directory')
     parser.add_option("-c", "--nb-processes", dest="nbProcesses", type='int', default=1,
                       help='Specify the number of parallel processes to spawn')
-    parser.add_option("-d", "--downsample-ratio", dest="downsampleRatio", type='int', default=1,
-                      help='Specify the downsampling ratio')
+    parser.add_option("-d", "--fs-video", dest="fsVideo", type='int', default=-1,
+                      help='Specify the framerate (Hz) of the output videos')
     parser.add_option("-t", "--sensors", dest="sensors", default=None,
                       help='Specify the sensors from which to export videos')
     (options,args) = parser.parse_args(args=args)
@@ -1018,7 +1043,7 @@ def main(args=None):
     logger.info('Using a multiprocessing pool of %d' % (nbProcesses))
     p = Pool(processes=nbProcesses, maxtasksperchild=1)
     
-    logger.info('Using a downsampling ratio of %d' % (options.downsampleRatio))
+    logger.info('Using a downsampling ratio of %d' % (options.fsVideo))
     
     defaultNames = ['orientation-raw', 'imu-accel-raw', 'imu-gyro-raw', 'twist_linear', 'twist_angular','imu-temperature',
                     'position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
@@ -1034,8 +1059,12 @@ def main(args=None):
         names = defaultNames
     logger.info('Exporting videos for those sensors: %s' % (','.join(names)))
     
+    fsVideo = options.fsVideo
+    if fsVideo <= 0:
+        fsVideo = None
+    
     for name in names:
-        p.apply_async(process, args=(name, datasetPath, outDirPath, options.downsampleRatio))
+        p.apply_async(process, args=(name, datasetPath, outDirPath, fsVideo))
     p.close()
     p.join()
     

@@ -81,7 +81,7 @@
 <node name="imu_baro" pkg="imu" type="imu_capture_baro" output="screen" >
     <param name="device" value="/sys/bus/i2c/drivers/bmp085/2-0077/pressure0_input" />        
     <param name="rate" value="50.0" />
-    <param name="output" value="/imu/baro" />
+    <param name="output" value="/imu/pressure" />
 </node>
 
 <node name="imu_temp" pkg="imu" type="imu_capture_temp" output="screen" >

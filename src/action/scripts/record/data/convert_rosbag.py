@@ -79,6 +79,8 @@ def main(args=None):
                       help='specify the path of the input bag file')
     parser.add_option("-o", "--output", dest="output", default=None,
                       help='specify the path of the output bag file')
+    parser.add_option("-r", "--do-not-rotate-right-camera", action="store_true", dest="doNotRotateRightCamera", default=True,
+                      help='specify to rotate right camera image stream')
     (options,args) = parser.parse_args(args=args)
 
     rosBagInPath = os.path.abspath(options.input)
@@ -86,6 +88,9 @@ def main(args=None):
 
     rosBagOutPath = os.path.abspath(options.output)    
     logger.info('Using output rosbag file: %s' % (rosBagOutPath))
+    
+    if options.doNotRotateRightCamera:
+        logger.info('Image stream from right camera will not be rotated (vertically and horizontally)')
     
     nbTotalMessageProcessed = 0
     with rosbag.Bag(rosBagOutPath, 'w') as outbag:
@@ -100,8 +105,13 @@ def main(args=None):
                 else:
                     logger.warn('Topic %s provides messages than have no header: using timestamps from rosbag' % (topic))
             
+                # Rename topic of imu barometer sensor
+                # NOTE: this is to properly handle the old topic name
+                if topic == '/imu/baro':
+                    topic = '/imu/pressure'
+            
                 # Rotate right camera images (lossless)
-                if topic == '/video/right/compressed':
+                if topic == '/video/right/compressed' and not options.doNotRotateRightCamera:
                     img = JPEGImage(blob=msg.data)
                     rotatedImg = img.flip('vertical').flip('horizontal')
                     msg.data = rotatedImg.as_blob()
