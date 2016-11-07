@@ -79,7 +79,7 @@ def main(args=None):
                       help='specify the path of the input bag file')
     parser.add_option("-o", "--output", dest="output", default=None,
                       help='specify the path of the output bag file')
-    parser.add_option("-r", "--do-not-rotate-right-camera", action="store_true", dest="doNotRotateRightCamera", default=True,
+    parser.add_option("-r", "--do-not-rotate-right-camera", action="store_true", dest="doNotRotateRightCamera", default=False,
                       help='specify to rotate right camera image stream')
     (options,args) = parser.parse_args(args=args)
 
