@@ -77,7 +77,27 @@ def getdroprateGraphOverTime(topicTimestamps, dropThreshold=1.0, windowWidth=10.
             _,_,_,_,dropMsgs = getStatisticsFromTimestamps(sWindow, dropThreshold)
             totalDropOverTime[i] += dropMsgs
 
-    return totalDropOverTime
+    duration =  lastMessageStamp - firstMessageStamp
+    return totalDropOverTime, firstMessageStamp ,duration
+
+def findBestDataWindow(droppedMsgGraph, startTime, duration, T=600 ):
+
+    subWindowWidth = duration / len(droppedMsgGraph)
+
+    if T >= subWindowWidth :
+        Ws = np.ceil(600/subWindowWidth)
+        W = np.ones(Ws)
+        conv = np.convolve(droppedMsgGraph, W, mode='valid')
+        pos = np.argmin(conv)
+        cenPos = (T/2) + pos * subWindowWidth
+        cenPosAbs = cenPos + startTime
+
+    elif (T < subWindowWidth) and (T > 0) :
+        pass
+    elif T <= 0:
+        pass
+
+    return cenPos, cenPosAbs
 
 def saveHistogramsToFiles(topicTimestamps, dropThreshold, outputPath):
 
@@ -108,13 +128,15 @@ def saveHistogramsToFiles(topicTimestamps, dropThreshold, outputPath):
         plt.savefig(filename, dpi=100)
         plt.close(fig)
 
-def saveDropMsgsOverTime(topicTimestamps, dropThreshold, outputPath):
+def saveDropMsgsOverTime(topicTimestamps, dropThreshold, outputPath, windowSize=600):
     outputPath = os.path.abspath(outputPath)
     if not os.path.exists(outputPath):
         logger.info('Creating output directory for histograms: %s' % (outputPath))
         os.makedirs(outputPath)
 
-    droppedMsgsOT = getdroprateGraphOverTime(topicTimestamps, dropThreshold)
+    droppedMsgsOT, startTime, recordDuration = getdroprateGraphOverTime(topicTimestamps, dropThreshold)
+
+    centerPos, centerPosAbs = findBestDataWindow(droppedMsgsOT, startTime, recordDuration, T=windowSize)
 
     fig = plt.figure(figsize=(8,6), facecolor='white')
 
@@ -122,12 +144,19 @@ def saveDropMsgsOverTime(topicTimestamps, dropThreshold, outputPath):
     plt.xlabel('Time (10s)')
     plt.ylabel('Messages dropped (all topics)')
     plt.plot(droppedMsgsOT, color='k')
+    #plt.plot(conv, color='b')
+    plt.axvline(centerPos/10, color='k')
+    plt.axvline((centerPos + windowSize/2)/10, color='r')
+    plt.axvline((centerPos - windowSize/2)/10, color='r')
 
     filename = os.path.join(outputPath, 'msgs_dropped.png')
     logger.info('Saving histogram figure to file: %s' % (filename))
     plt.savefig(filename, dpi=100)
     plt.close(fig)
 
+    filename = os.path.join(outputPath, 'best_window_times.txt')
+    with open(filename, "w") as text_file:
+        text_file.write(str(centerPosAbs-(windowSize/2)) + "\n" + str(centerPosAbs+(windowSize/2)))
 
 def getTabulatedStatistics(topicTimestamps, topicSequenceIds, dropThreshold):
 
@@ -241,7 +270,7 @@ def main(args=None):
 
     if options.saveDropped and options.output:
         outputPath = outputStatsFilePath + '.droppedGraph'
-        saveDropMsgsOverTime(topicTimestamps, options.dropThreshold, outputPath)
+        saveDropMsgsOverTime(topicTimestamps, options.dropThreshold, outputPath, windowSize=600)
 
     # Print statistics to string
     str = getTabulatedStatistics(topicTimestamps, topicSequenceIds, options.dropThreshold)
