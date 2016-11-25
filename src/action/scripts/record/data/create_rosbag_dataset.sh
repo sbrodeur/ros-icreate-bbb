@@ -31,14 +31,14 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag.raw'); do
 		exit 1
 	fi
 
-  rosrun imu_filter_madgwick imu_filter_rosbag -i $OUTPUT_DATASET_FILE_BAG_PROC_UNBATCHED  -o $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK
-  if ! [ -f $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK ]; then
+    rosrun imu_filter_madgwick imu_filter_rosbag -i $OUTPUT_DATASET_FILE_BAG_PROC_UNBATCHED  -o $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK
+    if ! [ -f $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK ]; then
 		echo "Could not find temporary file ${OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK}. An error probably occured during conversion."
 		exit 1
 	fi
 
-  rosrun create create_odometry_rosbag -i $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK  -o $OUTPUT_DATASET_FILE_BAG_PROC_ODOM
-  if ! [ -f $OUTPUT_DATASET_FILE_BAG_PROC_ODOM ]; then
+    rosrun create create_odometry_rosbag -i $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK  -o $OUTPUT_DATASET_FILE_BAG_PROC_ODOM
+    if ! [ -f $OUTPUT_DATASET_FILE_BAG_PROC_ODOM ]; then
 		echo "Could not find temporary file ${OUTPUT_DATASET_FILE_BAG_PROC_ODOM}. An error probably occured during conversion."
 		exit 1
 	fi
@@ -50,7 +50,7 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag.raw'); do
 	rm -f ${OUTPUT_DATASET_FILE_BAG%.bag}.orig.bag
 
 	echo "Removing all dataset temporary files"
-  rm -f $OUTPUT_DATASET_FILE_BAG_PROC_UNBATCHED $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK $OUTPUT_DATASET_FILE_BAG_PROC_ODOM
+    rm -f $OUTPUT_DATASET_FILE_BAG_PROC_UNBATCHED $OUTPUT_DATASET_FILE_BAG_PROC_MADGWICK $OUTPUT_DATASET_FILE_BAG_PROC_ODOM
 
 done
 

@@ -33,6 +33,10 @@ import logging
 import numpy as np
 import rosbag
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 from stats_rosbag import getAllTopicsMetadata, getdroprateGraphOverTime, findBestDataWindow
 
 
@@ -41,15 +45,15 @@ from optparse import OptionParser
 logger = logging.getLogger(__name__)
 
 
-def getExtractionTimes(topicTimestamps, dropThreshold=1.0, windowSize=600):
+def getExtractionTimes(topicTimestamps, dropThreshold=1.0, windowSize=600, cropWindow=15, windowConv=10):
 
-    droppedMsgsOT, startTime, recordDuration = getdroprateGraphOverTime(topicTimestamps, dropThreshold)
+    droppedMsgsOT, startTime, recordDuration = getdroprateGraphOverTime(topicTimestamps, dropThreshold, windowWidth=windowConv, ignoreBuffer=cropWindow)
 
     centerPos, centerPosAbs = findBestDataWindow(droppedMsgsOT, startTime, recordDuration, T=windowSize)
 
     start = centerPosAbs - windowSize/2
     end = centerPosAbs + windowSize/2
-    return start , end
+    return start , end, droppedMsgsOT
 
 def extractRosbag(inbagFile, outbagFile, start, end):
     with rosbag.Bag(outbagFile, 'w') as outbag:
@@ -59,6 +63,33 @@ def extractRosbag(inbagFile, outbagFile, start, end):
             t_sec = t.to_sec()
             if t_sec >= start and t_sec <= end:
                 outbag.write(topic, msg, t)
+
+
+def saveDropMsgsOverTime(droppedMsgsOT, centerPos, outputPath, windowSize=600):
+    outputPath = os.path.abspath(outputPath)
+    if not os.path.exists(outputPath):
+        logger.info('Creating output directory for histograms: %s' % (outputPath))
+        os.makedirs(outputPath)
+
+    fig = plt.figure(figsize=(8,6), facecolor='white')
+
+    plt.title("Histogram for Total Dropped messages over time")
+    plt.xlabel('Time (10s)')
+    plt.ylabel('Messages dropped (all topics)')
+    plt.plot(droppedMsgsOT, color='k')
+    #plt.plot(conv, color='b')
+    plt.axvline(centerPos/10, color='k')
+    plt.axvline((centerPos + windowSize/2)/10, color='r')
+    plt.axvline((centerPos - windowSize/2)/10, color='r')
+
+    filename = os.path.join(outputPath, 'msgs_dropped.png')
+    logger.info('Saving histogram figure to file: %s' % (filename))
+    plt.savefig(filename, dpi=100)
+    plt.close(fig)
+
+    #filename = os.path.join(outputPath, 'best_window_times.txt')
+    #with open(filename, "w") as text_file:
+    #    text_file.write(str(centerPosAbs-(windowSize/2)) + "\n" +     str(centerPosAbs+(windowSize/2)))
 
 def main(args=None):
 
@@ -74,7 +105,13 @@ def main(args=None):
                       help="Use rosbag time instead of capture time")
     parser.add_option("-t", "--drop-threshold", dest="dropThreshold", type='float', default=1.0,
                       help='Specify the threshold to use for detecting dropped messages')
-    parser.add_option("-e", "--extract", dest="extractDataDuration", type='int', default=-1, help="Specify in seconds the windows of best quality data to extract")
+    parser.add_option("-e", "--extract", dest="extractDataDuration", type='int', default=600, help="Specify in seconds the windows of best quality data to extract")
+
+    parser.add_option("-p", "--cropWindow", dest="cropWindow", type='int', default=15, help="Specify in seconds the time to ignore at the start and end of rosbag")
+
+    parser.add_option("-w", "--windowConv", dest="windowConv", type='int', default=10, help="Specify in seconds the window to use for convolution")
+
+    parser.add_option("-s", "--saveGraph", dest="saveGraph", default="", help="Specify in seconds the window to use for convolution")
     (options, args) = parser.parse_args()
 
     if not options.input:
@@ -97,11 +134,13 @@ def main(args=None):
 
 
     if options.extractDataDuration >= 0 and options.output:
-        start, end = getExtractionTimes(topicTimestamps, options.dropThreshold, options.extractDataDuration)
+        start, end, droppedOTGraph = getExtractionTimes(topicTimestamps, options.dropThreshold, options.extractDataDuration, options.cropWindow, options.windowConv)
 
         extractRosbag(inputRosbagPath, outputRosbagFilePath, start, end)
 
-
+        if options.saveGraph:
+            output_path = options.saveGraph + '.droppedGraph'
+            saveDropMsgsOverTime(droppedOTGraph,(end-start)/2, output_path, windowSize=options.extractDataDuration)
 
 
     logger.info('All done.')

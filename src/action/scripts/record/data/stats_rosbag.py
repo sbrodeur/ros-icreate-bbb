@@ -58,7 +58,7 @@ def getStatisticsFromTimestamps(timestamps, dropThreshold=1.0):
 
     return mean, variance, averageRate, nbMsgs, nbMsgDropped
 
-def getdroprateGraphOverTime(topicTimestamps, dropThreshold=1.0, windowWidth=10.0):
+def getdroprateGraphOverTime(topicTimestamps, dropThreshold=1.0, windowWidth=10.0, ignoreBuffer=0.0):
 
     firstMessageStamp = -1
     lastMessageStamp = -1
@@ -67,6 +67,12 @@ def getdroprateGraphOverTime(topicTimestamps, dropThreshold=1.0, windowWidth=10.
             firstMessageStamp = timestamps[0]
         if (lastMessageStamp < timestamps[-1]) or (lastMessageStamp == -1):
             lastMessageStamp = timestamps[-1]
+
+    #Ignore the first ignoreBuffer and last ignoreBuffer seconds
+    firstMessageStamp += ignoreBuffer
+    lastMessageStamp -= ignoreBuffer
+
+    #Timestamps bins
     timeSlices = np.arange(firstMessageStamp, lastMessageStamp, windowWidth)
 
 
@@ -84,18 +90,24 @@ def findBestDataWindow(droppedMsgGraph, startTime, duration, T=600 ):
 
     subWindowWidth = duration / len(droppedMsgGraph)
 
+    #Ignore the first and last ignoreBuffer time in seconds of the recordings
+    #ignoreWindow = np.ceil(ignoreBuffer/subWindowWidth)
+    #droppedMsgGraphCropped = droppedMsgGraph[ignoreWindow:-ignoreWindow]
+
     if T >= subWindowWidth :
-        Ws = np.ceil(600/subWindowWidth)
+        Ws = np.ceil(T/subWindowWidth)
         W = np.ones(Ws)
+        # conv will be len(graph) - len(W) long. The valid argument
+        #specifies only entirely overlapping results to be kept
         conv = np.convolve(droppedMsgGraph, W, mode='valid')
         pos = np.argmin(conv)
         cenPos = (T/2) + pos * subWindowWidth
-        cenPosAbs = cenPos + startTime
+        cenPosAbs = cenPos + startTime 
 
     elif (T < subWindowWidth) and (T > 0) :
-        pass
+        logger.error("Window Size for best window too small")
     elif T <= 0:
-        pass
+        logger.warn("Variable size best fit window not yet implemented")
 
     return cenPos, cenPosAbs
 

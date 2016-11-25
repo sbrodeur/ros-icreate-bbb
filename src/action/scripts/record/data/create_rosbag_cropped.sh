@@ -13,12 +13,13 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do
 	INPUT_DATASET_FILE="${bag}"
 	OUTPUT_DATASET_FILE_BAG_PROC_CROPPED="${bag}_cropped.proc"
   OUTPUT_DATASET_FILE_BAG="${bag%.bag.raw}.bag"
+  OUTPUT_DROPPED_HISTOGRAM="${bag%.bag}.droppedMsgs"
 
   echo "Removing any existing dataset temporary files"
 	rm -f $OUTPUT_DATASET_FILE_BAG_PROC_CROPPED
 
 
-  python ${DIR}/extract_rosbag.py --input=$INPUT_DATASET_FILE --output=$OUTPUT_DATASET_FILE_BAG_PROC_CROPPED --ignore-topics="/rosout,/rosout_agg,/tf,/irobot_create/cmd_raw" --drop-threshold=1.0 --extract=600
+  python ${DIR}/extract_rosbag.py --input=$INPUT_DATASET_FILE --output=$OUTPUT_DATASET_FILE_BAG_PROC_CROPPED --ignore-topics="/rosout,/rosout_agg,/tf,/irobot_create/cmd_raw" --drop-threshold=1.0 --extract=600 --windowConv=10 --cropWindow=15 --saveGraph=$OUTPUT_DROPPED_HISTOGRAM
 	if ! [ -f $OUTPUT_DATASET_FILE_BAG_PROC_CROPPED ]; then
 		echo "Could not find output file ${OUTPUT_DATASET_FILE_BAG_PROC_CROPPED}. An error probably occured during cropping."
 		exit 1
