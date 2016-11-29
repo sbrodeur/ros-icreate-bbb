@@ -10,7 +10,7 @@ PROJECT_ROOT=$( cd "$( dirname "${DIR}/../.." )" && pwd )
 # Sync root directory
 echo "Syncing Catkin workspace ${PROJECT_ROOT} to Beaglebone ..."
 cd ${PROJECT_ROOT}
-echo "build" >> ${DIR}/.exclude
+echo "build" > ${DIR}/.exclude
 echo "devel" >> ${DIR}/.exclude
 echo "video" >> ${DIR}/.exclude
 echo "data" >> ${DIR}/.exclude
@@ -18,6 +18,7 @@ echo "datasets" >> ${DIR}/.exclude
 echo "*.bag" >> ${DIR}/.exclude
 echo "*.rosbag" >> ${DIR}/.exclude
 echo "*.h5" >> ${DIR}/.exclude
+echo "*.pyc" >> ${DIR}/.exclude
 echo "*.h5.*" >> ${DIR}/.exclude
 echo "*.orig" >> ${DIR}/.exclude
 echo "*.mp4" >> ${DIR}/.exclude

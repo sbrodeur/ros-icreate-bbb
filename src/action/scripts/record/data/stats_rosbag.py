@@ -39,9 +39,9 @@ import matplotlib.pyplot as plt
 
 from tabulate import tabulate
 from optparse import OptionParser
+from bagutils import getAllTopicsMetadata, findBestDataWindow, getDropsTimeDistribution, plotDropsTimeDistribution
 
 logger = logging.getLogger(__name__)
-
 
 def getStatisticsFromTimestamps(timestamps, dropThreshold=1.0):
 
@@ -57,59 +57,6 @@ def getStatisticsFromTimestamps(timestamps, dropThreshold=1.0):
     nbMsgDropped = np.count_nonzero(timeDiffs > mean*(1.0 + dropThreshold))
 
     return mean, variance, averageRate, nbMsgs, nbMsgDropped
-
-def getdroprateGraphOverTime(topicTimestamps, dropThreshold=1.0, windowWidth=10.0, ignoreBuffer=0.0):
-
-    firstMessageStamp = -1
-    lastMessageStamp = -1
-    for topic, timestamps in topicTimestamps.iteritems():
-        if (firstMessageStamp > timestamps[0]) or (firstMessageStamp == -1):
-            firstMessageStamp = timestamps[0]
-        if (lastMessageStamp < timestamps[-1]) or (lastMessageStamp == -1):
-            lastMessageStamp = timestamps[-1]
-
-    #Ignore the first ignoreBuffer and last ignoreBuffer seconds
-    firstMessageStamp += ignoreBuffer
-    lastMessageStamp -= ignoreBuffer
-
-    #Timestamps bins
-    timeSlices = np.arange(firstMessageStamp, lastMessageStamp, windowWidth)
-
-
-    totalDropOverTime = np.zeros(np.size(timeSlices))
-    for topic, timestamps in topicTimestamps.iteritems():
-        for i in range(np.size(timeSlices)-1):
-            sWindow = timestamps[(timeSlices[i] < timestamps) & (timestamps < timeSlices[i+1]) ]
-            _,_,_,_,dropMsgs = getStatisticsFromTimestamps(sWindow, dropThreshold)
-            totalDropOverTime[i] += dropMsgs
-
-    duration =  lastMessageStamp - firstMessageStamp
-    return totalDropOverTime, firstMessageStamp ,duration
-
-def findBestDataWindow(droppedMsgGraph, startTime, duration, T=600 ):
-
-    subWindowWidth = duration / len(droppedMsgGraph)
-
-    #Ignore the first and last ignoreBuffer time in seconds of the recordings
-    #ignoreWindow = np.ceil(ignoreBuffer/subWindowWidth)
-    #droppedMsgGraphCropped = droppedMsgGraph[ignoreWindow:-ignoreWindow]
-
-    if T >= subWindowWidth :
-        Ws = np.ceil(T/subWindowWidth)
-        W = np.ones(Ws)
-        # conv will be len(graph) - len(W) long. The valid argument
-        #specifies only entirely overlapping results to be kept
-        conv = np.convolve(droppedMsgGraph, W, mode='valid')
-        pos = np.argmin(conv)
-        cenPos = (T/2) + pos * subWindowWidth
-        cenPosAbs = cenPos + startTime 
-
-    elif (T < subWindowWidth) and (T > 0) :
-        logger.error("Window Size for best window too small")
-    elif T <= 0:
-        logger.warn("Variable size best fit window not yet implemented")
-
-    return cenPos, cenPosAbs
 
 def saveHistogramsToFiles(topicTimestamps, dropThreshold, outputPath):
 
@@ -146,29 +93,16 @@ def saveDropMsgsOverTime(topicTimestamps, dropThreshold, outputPath, windowSize=
         logger.info('Creating output directory for histograms: %s' % (outputPath))
         os.makedirs(outputPath)
 
-    droppedMsgsOT, startTime, recordDuration = getdroprateGraphOverTime(topicTimestamps, dropThreshold)
+    droppedMsgsOT, startTime, recordDuration = getDropRatesOverTime(topicTimestamps, dropThreshold)
 
     centerPos, centerPosAbs = findBestDataWindow(droppedMsgsOT, startTime, recordDuration, T=windowSize)
 
-    fig = plt.figure(figsize=(8,6), facecolor='white')
-
-    plt.title("Histogram for Total Dropped messages over time")
-    plt.xlabel('Time (10s)')
-    plt.ylabel('Messages dropped (all topics)')
-    plt.plot(droppedMsgsOT, color='k')
-    #plt.plot(conv, color='b')
-    plt.axvline(centerPos/10, color='k')
-    plt.axvline((centerPos + windowSize/2)/10, color='r')
-    plt.axvline((centerPos - windowSize/2)/10, color='r')
+    fig = plotDropsTimeDistribution(droppedMsgsOT, centerPos, windowSize)
 
     filename = os.path.join(outputPath, 'msgs_dropped.png')
     logger.info('Saving histogram figure to file: %s' % (filename))
     plt.savefig(filename, dpi=100)
     plt.close(fig)
-
-    filename = os.path.join(outputPath, 'best_window_times.txt')
-    with open(filename, "w") as text_file:
-        text_file.write(str(centerPosAbs-(windowSize/2)) + "\n" + str(centerPosAbs+(windowSize/2)))
 
 def getTabulatedStatistics(topicTimestamps, topicSequenceIds, dropThreshold):
 
@@ -196,42 +130,6 @@ def getTabulatedStatistics(topicTimestamps, topicSequenceIds, dropThreshold):
     data.sort(key=lambda x: x[0])
 
     return tabulate(data, headers, tablefmt="grid", numalign="right", stralign="left", floatfmt=".2f")
-
-def getAllTopicsMetadata(filename, ignoredTopics, useRosbagTime=False):
-
-    topicTimestamps = dict()
-    topicSequenceIds = dict()
-    with rosbag.Bag(filename) as bag:
-        # Grab list of topics
-        topics = bag.get_type_and_topic_info()[1].keys()
-
-        # Generate Topic statisitics objects
-        for topic in topics:
-            if not topic in ignoredTopics:
-                topicTimestamps[topic] = []
-                topicSequenceIds[topic] = []
-
-        # Process all messages
-        for topic, msg, t in bag.read_messages():
-            if topic in topicTimestamps:
-                if useRosbagTime:
-                    t = t.to_sec()
-                else:
-                    # Get timestamp from header
-                    t = float(msg.header.stamp.to_sec())
-                topicTimestamps[topic].append(t)
-
-                id = msg.header.seq
-                topicSequenceIds[topic].append(id)
-
-    # Convert to sorted numpy arrays
-    # NOTE: sorting is important when using capture time, since they are not guaranteed
-    #       to be ordered as in the rosbag.
-    for topic, timestamps in topicTimestamps.iteritems():
-        topicTimestamps[topic] = np.sort(np.array(timestamps))
-    for topic, ids in topicSequenceIds.iteritems():
-        topicSequenceIds[topic] = np.sort(np.array(ids))
-    return topicTimestamps, topicSequenceIds
 
 def main(args=None):
 
@@ -281,7 +179,7 @@ def main(args=None):
         saveHistogramsToFiles(topicTimestamps, options.dropThreshold, outputPath)
 
     if options.saveDropped and options.output:
-        outputPath = outputStatsFilePath + '.droppedGraph'
+        outputPath = outputStatsFilePath + '.drop'
         saveDropMsgsOverTime(topicTimestamps, options.dropThreshold, outputPath, windowSize=600)
 
     # Print statistics to string
