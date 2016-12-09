@@ -93,7 +93,7 @@ def saveDropMsgsOverTime(topicTimestamps, dropThreshold, outputPath, windowSize=
         logger.info('Creating output directory for histograms: %s' % (outputPath))
         os.makedirs(outputPath)
 
-    droppedMsgsOT, startTime, recordDuration = getDropRatesOverTime(topicTimestamps, dropThreshold)
+    droppedMsgsOT, startTime, recordDuration = getDropsTimeDistribution(topicTimestamps, dropThreshold)
 
     centerPos, centerPosAbs = findBestDataWindow(droppedMsgsOT, startTime, recordDuration, T=windowSize)
 

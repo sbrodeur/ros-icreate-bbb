@@ -19,7 +19,7 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do
 		continue
 	fi
 
-	python ${DIR}/stats_rosbag.py --input=$INPUT_DATASET_FILE --output=$OUTPUT_STATS_FILE --ignore-topics="/rosout,/rosout_agg,/tf,/irobot_create/cmd_raw" --drop-threshold=1.0 --save-dropped
+	python ${DIR}/stats_rosbag.py --input=$INPUT_DATASET_FILE --output=$OUTPUT_STATS_FILE --ignore-topics="/rosout,/rosout_agg,/tf,/irobot_create/cmd_raw" --drop-threshold=1.0 
 	if ! [ -f $OUTPUT_STATS_FILE ]; then
 		echo "Could not find output file ${OUTPUT_STATS_FILE}. An error probably occured during analysis."
 		exit 1

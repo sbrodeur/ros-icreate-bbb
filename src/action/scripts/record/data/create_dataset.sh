@@ -19,7 +19,7 @@ if ! [ $? -eq 0 ]; then
   exit 1
 fi
 
-bash $DIR/create_rosbag_cropped.sh $DATASET_DIRECTORY
+bash $DIR/create_rosbag_stats_crop.sh $DATASET_DIRECTORY
 if ! [ $? -eq 0 ]; then
   echo "Error calling script $DIR/create_rosbag_cropped.sh $DATASET_DIRECTORY"
   exit 1
