@@ -2,30 +2,30 @@
 
 # Copyright (c) 2016, Simon Carrier, Simon Brodeur
 # All rights reserved.
-# 
-# Redistribution and use in source and binary forms, with or without 
+#
+# Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
-# 
-# 1. Redistributions of source code must retain the above copyright 
+#
+# 1. Redistributions of source code must retain the above copyright
 #    notice, this list of conditions and the following disclaimer.
-#   
+#
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
 #    documentation and/or other materials provided with the distribution.
-# 
+#
 # 3. Neither the name of the copyright holder nor the names of its contributors
 #    may be used to endorse or promote products derived from this software without
 #    specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
-# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, 
-# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY 
+# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
 # OF SUCH DAMAGE.
 
 import sys
@@ -114,7 +114,7 @@ def getDropsTimeDistribution(topicTimestamps, dropThreshold=1.0, windowWidth=10.
     for topic, timestamps in topicTimestamps.iteritems():
         for i in range(np.size(timeSlices)-1):
             timestampsWindow = timestamps[(timeSlices[i] < timestamps) & (timestamps < timeSlices[i+1])]
-            
+
             if len(timestampsWindow) > 1:
                 # Calculate relative times between messages
                 timeDiffs = timestampsWindow[1:] - timestampsWindow[:-1]
@@ -137,6 +137,80 @@ def findBestDataWindow(drops, startTime, duration, T=600):
         conv = np.convolve(drops, W, mode='valid')
         pos = np.argmin(conv)
         cenPos = (len(W)/2 + pos) * subWindowWidth
-        cenPosAbs = cenPos + startTime 
+        cenPosAbs = cenPos + startTime
 
     return cenPos, cenPosAbs
+
+
+def createLanguageTags(filename, useRosbagTime=False, maxSpeed=200):
+    #Note: Although the max speed is set to 250 in the behaviours, it was set to 200
+    # for remote control (check remote_control.py)
+
+    topicTimestamps, topicSequenceIds = getAllTopicsMetadata(filename, ignoredTopics=None, useRosbagTime=False)
+
+
+def publishL0States(filename, useRosbagTime=False, maxSpeed=200):
+
+    currentL0State.label = None
+    currentL0State.attributes = []
+    currentL0State.start = None
+    currentL0State.lifetime = None
+
+    newL0State.label = None
+    newL0State.start = None
+    newL0State.attributes = []
+
+    publishL0Flag = False
+
+    for topic, msg, t in bag.read_messages(topics=topicTimestamps.keys()):
+        if useRosbagTime:
+            t = t.to_sec()
+        else:
+            # Get timestamp from header
+            t = float(msg.header.stamp.to_sec())
+
+        if topic == "/irobot_create/cmd_raw":
+            ## Setting Main Label
+
+            #MOVE RULE
+            if (msg.left != 0) or (msg.right != 0):
+                if currentL0State.label == None or currentL0State.label == "Stop":
+                    newL0State.start = t
+                    newL0State.label = "Move"
+                    currentL0State.lifetime = t - currentL0State.start
+                    newL0State.attributes = []
+                    publishL0Flag = True
+            #STOP RULE
+            else:
+                if currentL0State.label == None or currentL0State.label == "Move":
+                    newL0State.start = t
+                    newL0State.label = "Stop"
+                    currentL0State.lifetime = t - currentL0StateStart
+                    newL0State.attributes = []
+                    publishL0Flag = True
+
+            ##Setting Label attributes
+
+            if currentL0State.label == "Move":
+                thresSpeed = 240
+                currentSpeed = msg.left + msg.right
+                if thresSpeed <= currentSpeed:
+                    subAtt = "Fast"
+                else:
+                    subAtt = "Slow"
+                if not subAtt in currentL0State.attributes:
+                    newL0State.start = t
+                    newL0State.label = "Move"
+                    currentL0State.lifetime = t - currentL0State.start
+                    newL0State.attributes = subAtt
+                    publishL0Flag = True
+
+            if newL0State.label == "Move":
+                thresSpeed = 240
+                currentSpeed = msg.left + msg.right
+                if thresSpeed <= currentSpeed:
+                    subAtt = "Fast"
+                else:
+                    subAtt = "Slow"
+                if not subAtt in currentL0State.attributes:
+                    newL0Stae.attributes = subAtt
