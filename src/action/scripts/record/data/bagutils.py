@@ -142,75 +142,134 @@ def findBestDataWindow(drops, startTime, duration, T=600):
     return cenPos, cenPosAbs
 
 
+class LState:
+
+    def __init__(self, label=None, attributes=[]):
+        self.label = label
+        self.attributes = attributes
+        self.start = []
+        self.lifetime = []
+
+    def toString(self):
+        output = "Label : " + str(self.label) + "\n"
+        output += "attributes : " + str(self.attributes) + "\n"
+        output += "start : " + str(self.start) + "\n"
+        output += "lifetime : " + str(self.lifetime) + "\n\n\n"
+
+        return output
+
 def createLanguageTags(filename, useRosbagTime=False, maxSpeed=200):
     #Note: Although the max speed is set to 250 in the behaviours, it was set to 200
     # for remote control (check remote_control.py)
 
-    topicTimestamps, topicSequenceIds = getAllTopicsMetadata(filename, ignoredTopics=None, useRosbagTime=False)
+    ListOfStates = publishL0States(filename, useRosbagTime=False, maxSpeed=200)
+
+
+    compressedListOfStates = collapseAllStates(ListOfStates)
+
+    ##YAML stuff
+    for states in compressedListOfStates:
+        print states.toString()
+
 
 
 def publishL0States(filename, useRosbagTime=False, maxSpeed=200):
 
-    currentL0State.label = None
-    currentL0State.attributes = []
-    currentL0State.start = None
-    currentL0State.lifetime = None
+    currentL0State = LState()
 
-    newL0State.label = None
-    newL0State.start = None
-    newL0State.attributes = []
+    newL0State = LState()
+
+    listOfStates = []
 
     publishL0Flag = False
 
-    for topic, msg, t in bag.read_messages(topics=topicTimestamps.keys()):
-        if useRosbagTime:
-            t = t.to_sec()
-        else:
-            # Get timestamp from header
-            t = float(msg.header.stamp.to_sec())
+    topicTimestamps, topicSequenceIds = getAllTopicsMetadata(filename, ignoredTopics=[], useRosbagTime=False)
 
-        if topic == "/irobot_create/cmd_raw":
-            ## Setting Main Label
-
-            #MOVE RULE
-            if (msg.left != 0) or (msg.right != 0):
-                if currentL0State.label == None or currentL0State.label == "Stop":
-                    newL0State.start = t
-                    newL0State.label = "Move"
-                    currentL0State.lifetime = t - currentL0State.start
-                    newL0State.attributes = []
-                    publishL0Flag = True
-            #STOP RULE
+    with rosbag.Bag(filename) as bag:
+        for topic, msg, t in bag.read_messages():
+            if useRosbagTime:
+                t = t.to_sec()
             else:
-                if currentL0State.label == None or currentL0State.label == "Move":
-                    newL0State.start = t
-                    newL0State.label = "Stop"
-                    currentL0State.lifetime = t - currentL0StateStart
-                    newL0State.attributes = []
-                    publishL0Flag = True
+                # Get timestamp from header
+                t = float(msg.header.stamp.to_sec())
 
-            ##Setting Label attributes
+            if topic == "/irobot_create/cmd_raw":
+                ## Setting Main Label
 
-            if currentL0State.label == "Move":
-                thresSpeed = 240
-                currentSpeed = msg.left + msg.right
-                if thresSpeed <= currentSpeed:
-                    subAtt = "Fast"
-                else:
-                    subAtt = "Slow"
-                if not subAtt in currentL0State.attributes:
-                    newL0State.start = t
-                    newL0State.label = "Move"
-                    currentL0State.lifetime = t - currentL0State.start
-                    newL0State.attributes = subAtt
-                    publishL0Flag = True
 
-            if newL0State.label == "Move":
-                thresSpeed = 240
-                currentSpeed = msg.left + msg.right
-                if thresSpeed <= currentSpeed:
-                    subAtt = "Fast"
-                else:
-                    subAtt = "Slow"
-                if not subAtt in currentL0State.attributes:
-                    newL0Stae.attributes = subAtt
+                newL0State = L0RuleSet(msg, maxSpeed=maxSpeed)
+
+                if (newL0State.label != currentL0State.label) or (newL0State.attributes != currentL0State.attributes):
+                    if currentL0State.label == None:
+                        currentL0State = newL0State
+                        currentL0State.start = t
+                    else:
+                        currentL0State.lifetime = t - currentL0State.start
+                        listOfStates.append(currentL0State)
+                        currentL0State = newL0State
+                        currentL0State.start = t
+
+    return listOfStates
+
+
+def L0RuleSet(msg, maxSpeed=200) :
+
+    L0State = LState()
+    ##Labels
+
+    #MOVE
+    if (msg.left != 0) or (msg.right != 0):
+        L0State.label = "Move"
+    #STOP
+    else :
+        L0State.label = "Stop"
+
+    ##Attributes
+    thresSpeed = maxSpeed*2*0.6
+    currentSpeed = msg.left + msg.right
+    #FAST
+    if (L0State.label == "Move") and (thresSpeed <= currentSpeed):
+        L0State.attributes = ["Fast"]
+    #SLOW
+    elif (L0State.label == "Move") :
+        L0State.attributes = ["Slow"]
+
+    return L0State
+
+
+
+def collapseAllStates(listOfStates):
+
+    ListOfUniqueLabels = []
+    ListOfUniqueAttributes = []
+
+    compressedList = []
+    compressedListNonEmpty = []
+
+    #Get all possible categories
+    for states in listOfStates:
+        if not states.label in ListOfUniqueLabels:
+            ListOfUniqueLabels.append(states.label)
+        if not states.attributes in ListOfUniqueAttributes:
+            ListOfUniqueAttributes.append(states.attributes)
+
+    #Instanciate all Categories
+    for label in ListOfUniqueLabels:
+        for attributes in ListOfUniqueAttributes:
+            newCategory = LState(label, attributes)
+            compressedList.append(newCategory)
+
+    #Search through all states and put them in appropriate Category
+    for states in listOfStates:
+        for uniquesStates in compressedList:
+            if ((states.label == uniquesStates.label) and (states.attributes == uniquesStates.attributes)):
+                uniquesStates.start.append(states.start)
+                uniquesStates.lifetime.append(states.lifetime)
+
+    #Eliminate all empty categories
+    compressedListNonEmpty = []
+    for uniquesStates in compressedList:
+        if(uniquesStates.start != [] ):
+            compressedListNonEmpty.append(uniquesStates)
+
+    return compressedListNonEmpty
