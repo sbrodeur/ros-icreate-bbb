@@ -13,6 +13,7 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do
 	INPUT_DATASET_FILE="${bag}"
 	OUTPUT_DATASET_FILE_HDF5_RAW="${bag%.bag}.h5.raw"
 	OUTPUT_DATASET_FILE_HDF5_SORT="${bag%.bag}.h5.sort"
+	OUTPUT_DATASET_FILE_HDF5_OPFLOW="${bag%.bag}.h5.opflow"
 	OUTPUT_DATASET_FILE_HDF5_SYNC="${bag%.bag}.h5.sync"
 	OUTPUT_DATASET_FILE_HDF5="${bag%.bag}.h5"
 	
@@ -37,7 +38,13 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do
 		exit 1
 	fi
 	
-	python ${DIR}/sync_hdf5.py --input=$OUTPUT_DATASET_FILE_HDF5_SORT --output=$OUTPUT_DATASET_FILE_HDF5_SYNC --fs=100 --interpolation=nearest
+	python ${DIR}/opflow_hdf5.py --input=$OUTPUT_DATASET_FILE_HDF5_SORT --output=$OUTPUT_DATASET_FILE_HDF5_OPFLOW --scale=0.5 --border=0.1 --fs=10.0 --grid-shape-y=12 --grid-shape-x=16
+	if ! [ -f $OUTPUT_DATASET_FILE_HDF5_OPFLOW ]; then
+		echo "Could not find temporary file ${OUTPUT_DATASET_FILE_HDF5_OPFLOW}. An error probably occured during conversion."
+		exit 1
+	fi
+	
+	python ${DIR}/sync_hdf5.py --input=$OUTPUT_DATASET_FILE_HDF5_OPFLOW --output=$OUTPUT_DATASET_FILE_HDF5_SYNC --fs=100 --interpolation=nearest
 	if ! [ -f $OUTPUT_DATASET_FILE_HDF5_SYNC ]; then
 		echo "Could not find temporary file ${OUTPUT_DATASET_FILE_HDF5_SYNC}. An error probably occured during conversion."
 		exit 1
@@ -45,7 +52,7 @@ for bag in $(find ${BAG_DIRECTORY} -name '*.bag'); do
 	cp $OUTPUT_DATASET_FILE_HDF5_SYNC $OUTPUT_DATASET_FILE_HDF5
 	
 	echo "Removing all dataset temporary files"
-	rm -f $OUTPUT_DATASET_FILE_HDF5_RAW $OUTPUT_DATASET_FILE_HDF5_SORT $OUTPUT_DATASET_FILE_HDF5_SYNC
+	#rm -f $OUTPUT_DATASET_FILE_HDF5_RAW $OUTPUT_DATASET_FILE_HDF5_SORT $OUTPUT_DATASET_FILE_HDF5_OPFLOW $OUTPUT_DATASET_FILE_HDF5_SYNC
 	
 done
 

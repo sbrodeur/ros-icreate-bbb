@@ -78,7 +78,7 @@ def getAllTopicsMetadata(filename, ignoredTopics, useRosbagTime=False):
         topicSequenceIds[topic] = np.sort(np.array(ids))
     return topicTimestamps, topicSequenceIds
 
-def plotDropsTimeDistribution(drops, centerPos, cropWindow=600, windowSizeConv=10.0):
+def plotDropsTimeDistribution(drops, centerPos=None, cropWindow=600, windowSizeConv=10.0):
 
     t = np.linspace(0.0, windowSizeConv * len(drops), len(drops))
     fig = plt.figure(figsize=(8,6), facecolor='white')
@@ -88,9 +88,10 @@ def plotDropsTimeDistribution(drops, centerPos, cropWindow=600, windowSizeConv=1
     plt.ylabel('Messages dropped (all topics)')
     plt.plot(t, drops, color='k')
     plt.xlim([np.min(t), np.max(t)])
-    plt.axvline(centerPos, color='b')
-    plt.axvline((centerPos + cropWindow/2.0), color='r')
-    plt.axvline((centerPos - cropWindow/2.0), color='r')
+    if centerPos is not None:
+        plt.axvline(centerPos, color='b')
+        plt.axvline((centerPos + cropWindow/2.0), color='r')
+        plt.axvline((centerPos - cropWindow/2.0), color='r')
     return fig
 
 def getDropsTimeDistribution(topicTimestamps, dropThreshold=1.0, windowWidth=10.0, ignoreBorder=0.0):

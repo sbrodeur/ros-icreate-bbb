@@ -104,7 +104,7 @@ Other information included:
 
 ## Dataset usage
 
-The provided multimonal dataset can have multiple usages:
+The provided multimodal dataset can have multiple usages:
 * Multimodal unsupervised object learning: learn the statistical regularities (structures) of the sensor inputs.
 * Multimodal prediction: learn to predict future states of the sensory inputs. 
 * Egomotion detection: learn to predict motor states from the other sensory inputs (e.g. visual optical flow)

@@ -46,13 +46,43 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.patches import FancyArrowPatch
 from mpl_toolkits.mplot3d import proj3d
 
+import traceback
 import multiprocessing
-from multiprocessing import Pool
+from multiprocessing.pool import Pool
 
 from h5utils import Hdf5Dataset
 from optparse import OptionParser
 
 logger = logging.getLogger(__name__)
+
+class LogExceptions(object):
+    """ 
+    Adapted from: http://stackoverflow.com/questions/6728236/exception-thrown-in-multiprocessing-pool-not-detected
+    """
+    def __init__(self, callable):
+        self.__callable = callable
+
+    def __call__(self, *args, **kwargs):
+        try:
+            result = self.__callable(*args, **kwargs)
+
+        except Exception as e:
+            # Here we add some debugging help. If multiprocessing's
+            # debugging is on, it will arrange to log the traceback
+            logger.error(traceback.format_exc())
+            # Re-raise the original exception so the Pool worker can
+            # clean up
+            raise
+
+        # It was fine, give a normal answer
+        return result
+
+class LoggingPool(Pool):
+    """ 
+    From: http://stackoverflow.com/questions/6728236/exception-thrown-in-multiprocessing-pool-not-detected
+    """
+    def apply_async(self, func, args=(), kwds={}, callback=None):
+        return Pool.apply_async(self, LogExceptions(func), args, kwds, callback)
 
 def is_cv2():
     import cv2 as lib
@@ -447,6 +477,44 @@ def exportBatteryStatusFramesAsVideo(frames, fs, filename, title, labels=['Time 
     
     plt.close(fig)
 
+def exportFlowFramesAsVideo(framesFlow, fs, filename, fsVideo=None):
+
+    if fsVideo is None:
+        fsVideo = fs
+    downsampleRatio = np.max([1, int(fs/fsVideo)])
+
+    # Create the video file writer
+    writer = animation.FFMpegWriter(fps=fs/float(downsampleRatio), codec='libx264', extra_args=['-preset', 'ultrafast'])
+    
+    # NOTE: hardcoded image size and border used to compute optical flow
+    ih, iw = 240, 320
+    border = 0.1
+    h,w = framesFlow[0].shape[:2]
+    y, x = np.meshgrid(np.linspace(border*ih, (1.0-border)*ih, h, dtype=np.int),
+                       np.linspace(border*iw, (1.0-border)*iw, w, dtype=np.int),
+                       indexing='ij')
+    fig = plt.figure(figsize=(5,4), facecolor='white', frameon=False)
+    ax = fig.add_subplot(111)
+    q = ax.quiver(x, y, np.zeros((h,w)), np.zeros((h,w)), edgecolor='k', scale=1, scale_units='xy')
+    ax.invert_yaxis()
+    plt.axis('off')
+    fig.tight_layout()
+    
+    startTime = time.time()
+    with writer.saving(fig, filename, 100):
+
+        for n, flow in enumerate(framesFlow):
+            
+            if n % int(downsampleRatio) == 0:
+                q.set_UVC(flow[:,:,0], -flow[:,:,1])
+                
+                writer.grab_frame()
+    
+    elapsedTime = time.time() - startTime
+    logger.info('FPS = %f frame/sec' % (len(framesFlow)/elapsedTime))
+    
+    plt.close(fig)
+
 def processIRrange(dataset, outDirPath, fsVideo=None):
 
     group = 'collision'
@@ -837,7 +905,8 @@ def processPressure(dataset, outDirPath, fsVideo=None):
     labels = ['Time [sec]', "Pressure [kPa]"]
     normalPressure = 101.325 # Average sea-level pressure
     variation = 3.386
-    ylim=[normalPressure - variation, normalPressure + variation]
+    #ylim=[normalPressure - variation, normalPressure + variation]
+    ylim=[np.min(raw), np.max(raw)]
     legend = None
     
     exportSensorFramesAsVideo(raw, fs, outputVideoFile, title, labels, ylim, windowSize=int(2*fs), grid=False, legend=legend, fsVideo=fsVideo)
@@ -955,6 +1024,22 @@ def processVideo(dataset, outDirPath):
         elapsedTime = time.time() - startTime
         logger.info('FPS = %f frame/sec' % (nbFrames/elapsedTime))
 
+def processFlow(dataset, outDirPath, fsVideo=None):
+    group = 'flow'
+    names = ['left', 'right']
+    
+    for name in names:
+        [_, _, raw, clock, shape] = dataset.getStates(name, group)
+
+        # Estimate sampling rate from clock
+        fs = int(np.round(1.0/np.mean(clock[1:] - clock[:-1])))
+        logger.info('Estimated sampling rate of %d Hz for %s (group: %s)' % (fs, name, group))
+
+        outputVideoFile = os.path.abspath(os.path.join(outDirPath, '%s_%s.avi' % (group, name)))
+        logger.info('Writing to output video file %s' % (outputVideoFile))
+        
+        exportFlowFramesAsVideo(raw, fs, outputVideoFile, fsVideo=fsVideo)
+
 def process(name, datasetPath, outDirPath, fsVideo=None):
     with Hdf5Dataset(datasetPath, mode='r') as dataset:
         if name == 'position':
@@ -967,6 +1052,8 @@ def process(name, datasetPath, outDirPath, fsVideo=None):
             processMotors(dataset, outDirPath, fsVideo)
         elif name == 'video':
             processVideo(dataset, outDirPath)
+        elif name == 'flow':
+            processFlow(dataset, outDirPath, fsVideo)
         elif name == 'imu-accel':
             processImu(dataset, outDirPath, name, fsVideo)
         elif name == 'imu-gyro':
@@ -1041,14 +1128,14 @@ def main(args=None):
         nbProcesses = options.nbProcesses
     
     logger.info('Using a multiprocessing pool of %d' % (nbProcesses))
-    p = Pool(processes=nbProcesses, maxtasksperchild=1)
+    p = LoggingPool(processes=nbProcesses, maxtasksperchild=1)
     
     logger.info('Using a downsampling ratio of %d' % (options.fsVideo))
     
     defaultNames = ['orientation-raw', 'imu-accel-raw', 'imu-gyro-raw', 'twist_linear', 'twist_angular','imu-temperature',
                     'position', 'audio-signal-left', 'audio-signal-right', 'orientation','battery',
                     'contact','cliff','wheel-drop','range', 'imu-accel', 'imu-gyro', 'imu-mag', 'imu-pressure',
-                    'motors', 'video', 'audio', 'battery-charge', 'battery-percentage', 'battery-status']
+                    'motors', 'video', 'flow', 'audio', 'battery-charge', 'battery-percentage', 'battery-status']
     
     if options.sensors is not None:
         names = str(options.sensors).split(',')
